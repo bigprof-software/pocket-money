@@ -77,7 +77,7 @@
 			/* is the current table filter-first? */
 			$tChkFF = array_search($tn, array());
 			/* hide current table in homepage? */
-			$tChkHL = array_search($tn, array());
+			$tChkHL = array_search($tn, array('transactions'));
 			/* allow homepage 'add new' for current table? */
 			$tChkAHAN = array_search($tn, array());
 
