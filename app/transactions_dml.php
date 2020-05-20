@@ -19,7 +19,8 @@ function transactions_insert() {
 	$data['date'] = parseMySQLDate($data['date'], '1');
 	$data['amount'] = $_REQUEST['amount'];
 		if($data['amount'] == empty_lookup_value) { $data['amount'] = ''; }
-	$data['description'] = br2nl($_REQUEST['description']);
+	$data['description'] = $_REQUEST['description'];
+		if($data['description'] == empty_lookup_value) { $data['description'] = ''; }
 
 	// hook: transactions_before_insert
 	if(function_exists('transactions_before_insert')) {
@@ -120,7 +121,8 @@ function transactions_update($selected_id) {
 	$data['date'] = parseMySQLDate($data['date'], '1');
 	$data['amount'] = makeSafe($_REQUEST['amount']);
 		if($data['amount'] == empty_lookup_value) { $data['amount'] = ''; }
-	$data['description'] = br2nl(makeSafe($_REQUEST['description']));
+	$data['description'] = makeSafe($_REQUEST['description']);
+		if($data['description'] == empty_lookup_value) { $data['description'] = ''; }
 	$data['selectedID'] = makeSafe($selected_id);
 
 	// hook: transactions_before_update
@@ -431,11 +433,8 @@ function transactions_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1
 		if( $dvprint) $templateCode = str_replace('<%%VALUE(amount)%%>', safe_html($urow['amount']), $templateCode);
 		if(!$dvprint) $templateCode = str_replace('<%%VALUE(amount)%%>', html_attr($row['amount']), $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(amount)%%>', urlencode($urow['amount']), $templateCode);
-		if($dvprint || (!$AllowUpdate && !$AllowInsert)) {
-			$templateCode = str_replace('<%%VALUE(description)%%>', safe_html($urow['description']), $templateCode);
-		}else{
-			$templateCode = str_replace('<%%VALUE(description)%%>', html_attr($row['description']), $templateCode);
-		}
+		if( $dvprint) $templateCode = str_replace('<%%VALUE(description)%%>', safe_html($urow['description']), $templateCode);
+		if(!$dvprint) $templateCode = str_replace('<%%VALUE(description)%%>', html_attr($row['description']), $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(description)%%>', urlencode($urow['description']), $templateCode);
 		$templateCode = str_replace('<%%VALUE(balance)%%>', safe_html($urow['balance']), $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(balance)%%>', urlencode($urow['balance']), $templateCode);

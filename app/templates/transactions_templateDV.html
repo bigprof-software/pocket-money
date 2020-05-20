@@ -43,8 +43,10 @@
 
 				<div class="form-group">
 					<hr class="hidden-md hidden-lg">
-					<label for="amount" class="control-label col-lg-3">Amount</label>
+					<label for="amount" class="control-label col-lg-3">Amount <i class="glyphicon glyphicon-info-sign text-info" data-toggle="collapse" data-target="#amount-description"></i></label>
 					<div class="col-lg-9">
+						<span class="help-block collapse" id="amount-description"><div class="alert alert-info">Enter a postive value for deposits, or a negative value for withdrawals/spending.</div></span>
+
 						<input maxlength="13" type="text" class="form-control" name="amount" id="amount" value="<%%VALUE(amount)%%>">
 					</div>
 				</div>
@@ -53,7 +55,7 @@
 					<hr class="hidden-md hidden-lg">
 					<label for="description" class="control-label col-lg-3">Description</label>
 					<div class="col-lg-9">
-						<textarea class="form-control" name="description" id="description" rows="5"><%%VALUE(description)%%></textarea>
+						<input maxlength="" type="text" class="form-control" name="description" id="description" value="<%%VALUE(description)%%>">
 					</div>
 				</div>
 
