@@ -102,21 +102,27 @@
 
 	}
 
-	function auto_deposit_pocket_money_weekly() {
+	function auto_deposit_pocket_money_weekly(&$debug = []) {
 		$date = pocket_money_date();
 		$description = 'Pocket money';
+		$debug = ['date' => $date];
 
 		// get all kids and their current pocket money value
 		$kids = get_all_kids();
+		$debug['kids'] = count($kids);
 		foreach ($kids as $kid) {
 			// if pocket money already added, skip
+			$debug['kid-' . $kid['name'] . '-has-pocket-money?'] = false; 
 			if(sqlValue(
 				"SELECT COUNT(1) FROM `transactions` 
 				 WHERE
 				 	`kid` = '{$kid['id']}' AND
 				 	`date` = '{$date}' AND
 				 	`description` LIKE '{$description}'"
-			)) continue;
+			)) {
+				$debug['kid-' . $kid['name'] . '-has-pocket-money?'] = true; 
+				continue;
+			}
 
 			// insert pocket money for kid, then set owner to admin
 			if(insert('transactions', [
@@ -124,8 +130,11 @@
 				'date' => $date,
 				'amount' => $kid['pocket_money'],
 				'description' => $description
-			]))
-				set_record_owner('transactions', db_insert_id(), 'admin');
+			])) {
+				$id = db_insert_id();
+				$debug['kid-' . $kid['name'] . '-new-pocket-money-id'] = $id;
+				set_record_owner('transactions', $id, 'admin');
+			}
 		}
 	}
 

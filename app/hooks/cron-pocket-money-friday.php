@@ -4,4 +4,7 @@
 	include("{$hooks_dir}/../language.php");
 	include("{$hooks_dir}/../lib.php");
 	
-	auto_deposit_pocket_money_weekly();
+	$debug = [];
+	auto_deposit_pocket_money_weekly($debug);
+
+	print_r($debug);
