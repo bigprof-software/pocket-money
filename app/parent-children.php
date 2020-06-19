@@ -31,7 +31,7 @@
 					'show-page-progress' => true,
 					'template' => 'children-transactions',
 					'template-printable' => 'children-transactions-printable',
-					'query' => "SELECT `transactions`.`id` as 'id', IF(    CHAR_LENGTH(`kids1`.`name`), CONCAT_WS('',   `kids1`.`name`), '') as 'kid', if(`transactions`.`date`,date_format(`transactions`.`date`,'%d/%m/%Y'),'') as 'date', `transactions`.`amount` as 'amount', `transactions`.`description` as 'description', `transactions`.`balance` as 'balance' FROM `transactions` LEFT JOIN `kids` as kids1 ON `kids1`.`id`=`transactions`.`kid` ORDER BY `transactions`.`date` desc, `transactions`.`id` desc"
+					'query' => "SELECT `transactions`.`id` as 'id', IF(    CHAR_LENGTH(`kids1`.`name`), CONCAT_WS('',   `kids1`.`name`), '') as 'kid', if(`transactions`.`date`,date_format(`transactions`.`date`,'%d/%m/%Y'),'') as 'date', `transactions`.`amount` as 'amount', `transactions`.`description` as 'description', `transactions`.`balance` as 'balance' FROM `transactions` LEFT JOIN `kids` as kids1 ON `kids1`.`id`=`transactions`.`kid` "
 				),
 			),
 		);
