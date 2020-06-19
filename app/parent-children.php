@@ -24,7 +24,7 @@
 					'display-field-names' => array(1 => 'kid', 2 => 'date', 3 => 'amount', 4 => 'description', 5 => 'balance'),
 					'sortable-fields' => array(0 => '`transactions`.`id`', 1 => '`kids1`.`name`', 2 => '`transactions`.`date`', 3 => '`transactions`.`amount`', 4 => 5, 5 => '`transactions`.`balance`'),
 					'records-per-page' => 10,
-					'default-sort-by' => 2,
+					'default-sort-by' => '2 desc, 0',
 					'default-sort-direction' => 'desc',
 					'open-detail-view-on-click' => true,
 					'display-page-selector' => true,
