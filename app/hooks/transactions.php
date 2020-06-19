@@ -26,6 +26,8 @@
 	*/
 
 	function transactions_init(&$options, $memberInfo, &$args) {
+		$options->DefaultSortField = '`transactions`.`date` desc, `transactions`.`id`';
+		$options->DefaultSortDirection = 'desc';
 
 		return TRUE;
 	}
