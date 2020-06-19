@@ -24,14 +24,14 @@
 					'display-field-names' => array(1 => 'kid', 2 => 'date', 3 => 'amount', 4 => 'description', 5 => 'balance'),
 					'sortable-fields' => array(0 => '`transactions`.`id`', 1 => '`kids1`.`name`', 2 => '`transactions`.`date`', 3 => '`transactions`.`amount`', 4 => 5, 5 => '`transactions`.`balance`'),
 					'records-per-page' => 10,
-					'default-sort-by' => '2 desc, 0',
+					'default-sort-by' => 2,
 					'default-sort-direction' => 'desc',
 					'open-detail-view-on-click' => true,
 					'display-page-selector' => true,
 					'show-page-progress' => true,
 					'template' => 'children-transactions',
 					'template-printable' => 'children-transactions-printable',
-					'query' => "SELECT `transactions`.`id` as 'id', IF(    CHAR_LENGTH(`kids1`.`name`), CONCAT_WS('',   `kids1`.`name`), '') as 'kid', if(`transactions`.`date`,date_format(`transactions`.`date`,'%d/%m/%Y'),'') as 'date', `transactions`.`amount` as 'amount', `transactions`.`description` as 'description', `transactions`.`balance` as 'balance' FROM `transactions` LEFT JOIN `kids` as kids1 ON `kids1`.`id`=`transactions`.`kid` "
+					'query' => "SELECT `transactions`.`id` as 'id', IF(    CHAR_LENGTH(`kids1`.`name`), CONCAT_WS('',   `kids1`.`name`), '') as 'kid', if(`transactions`.`date`,date_format(`transactions`.`date`,'%d/%m/%Y'),'') as 'date', `transactions`.`amount` as 'amount', `transactions`.`description` as 'description', `transactions`.`balance` as 'balance' FROM `transactions` LEFT JOIN `kids` as kids1 ON `kids1`.`id`=`transactions`.`kid` ORDER BY `transactions`.`date` desc, `transactions`.`id` desc"
 				),
 			),
 		);
