@@ -1,4 +1,7 @@
 <?php
+
+	define('mysql_charset', 'utf8');
+
 	function detect_config($redirect_to_setup = true) {
 		$config_exists = is_readable(dirname(__FILE__) . '/config.php');
 
@@ -7,7 +10,7 @@
 
 			if(!headers_sent()) {
 				@header("Location: $url");
-			}else{
+			} else {
 				echo '<META HTTP-EQUIV="Refresh" CONTENT="0;url=' . $url . '">' .
 					 '<script>window.location = "' . $url . '";</script>';
 			}
@@ -50,15 +53,13 @@
 		return false;
 	}
 
-	function save_config($config_array = array()) {
+	function save_config($config_array = []) {
 		$curr_dir = dirname(__FILE__);
 		if(!count($config_array) || !count($config_array['adminConfig'])) return array('error' => 'Invalid config array');
 
 		$new_admin_config = '';
-		foreach($config_array['adminConfig'] as $admin_var => $admin_val) {
-			$new_admin_config .= "\t\t'" . addslashes($admin_var) . "' => \"" . str_replace(array("\n", "\r", '"', '$'), array('\n', '\r', '\"', '\$'), $admin_val) . "\",\n";
-		}
-		$new_admin_config = substr($new_admin_config, 0, -2) . "\n";
+		foreach($config_array['adminConfig'] as $admin_var => $admin_val)
+			$new_admin_config .= "\t\t'" . addslashes($admin_var) . "' => \"" . str_replace(["\n", "\r", '"', '$'], ['\n', '\r', '\"', '\$'], $admin_val) . "\",\n";
 
 		$new_config = "<?php\n" . 
 			"\t\$dbServer = '" . addslashes($config_array['dbServer']) . "';\n" .
@@ -69,16 +70,16 @@
 			(isset($config_array['appURI']) ? "\t\$appURI = '" . addslashes($config_array['appURI']) . "';\n" : '') .
 			(isset($config_array['host']) ? "\t\$host = '" . addslashes($config_array['host']) . "';\n" : '') .
 
-			"\n\t\$adminConfig = array(\n" . 
+			"\n\t\$adminConfig = [\n" . 
 				$new_admin_config .
-			"\t);";
+			"\t];";
 
 		if(detect_config(false)) {
 			// attempt to back up config
 			@copy($curr_dir . '/config.php', $curr_dir . '/config.bak.php');
 		}
 
-		if(!$fp = @fopen($curr_dir . '/config.php', 'w')) return array('error' => 'Unable to write to config file', 'config' => $new_config);
+		if(!$fp = @fopen($curr_dir . '/config.php', 'w')) return ['error' => 'Unable to write to config file', 'config' => $new_config];
 		fwrite($fp, $new_config);
 		fclose($fp);
 
@@ -92,7 +93,7 @@
 	function config($var, $force_reload = false) {
 		static $config;
 
-		$default_config = array(
+		$default_config = [
 			'dbServer' => '',
 			'dbUsername' => '',
 			'dbPassword' => '',
@@ -100,7 +101,7 @@
 			'appURI' => '',
 			'host' => (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'] . ($_SERVER['SERVER_PORT'] == '80' || $_SERVER['SERVER_PORT'] == '443' ? '' : ":{$_SERVER['SERVER_PORT']}")),
 
-			'adminConfig' => array(
+			'adminConfig' => [
 				'adminUsername' => '',
 				'adminPassword' => '',
 				'notifyAdminNewMembers' => false,
@@ -128,9 +129,11 @@
 				'smtp_encryption' => '',
 				'smtp_port' => 25,
 				'smtp_user' => '',
-				'smtp_pass' => ''
-			)
-		);
+				'smtp_pass' => '',
+				'googleAPIKey' => '',
+				'baseUploadPath' => 'images',
+			]
+		];
 
 		if(!isset($config) || $force_reload) {
 			@include(dirname(__FILE__) . '/config.php');
@@ -142,36 +145,10 @@
 			$config['appURI'] = $appURI;
 			$config['host'] = $host;
 			$config['adminConfig'] = $adminConfig;
+			if(empty($config['adminConfig']['baseUploadPath'])) $config['adminConfig']['baseUploadPath'] = 'images';
 		}
 
 		return (isset($config[$var]) && $config[$var] ? $config[$var] : $default_config[$var]);
-	}
-
-	/* 
-		handling password hashing in old PHP versions
-			to hash a password, store the return val of 
-				password_hash($pass, PASSWORD_DEFAULT) 
-
-			to verify:
-				if(!password_match($pass, $hash)) { no_match_code_here }
-
-			to migrate old hashes:
-				password_harden($user, $pass, $hash);
-	*/
-	if(!defined('PASSWORD_DEFAULT')) {
-		define('PASSWORD_DEFAULT', 1);
-	}
-
-	if (!function_exists('password_hash')) {
-		function password_hash($password, $algo, $options = array()) {
-			return md5($password);
-		}
-	}
-
-	if (!function_exists('password_verify')) {
-		function password_verify($password, $hash) {
-			return (md5($password) == $hash);
-		}
 	}
 
 	/**
@@ -182,7 +159,7 @@
 	 *  @return Boolean indicating match or no match
 	 */
 	function password_match($password, $hash) {
-		if(strlen($hash) == 32) return (md5($password) == $hash);
+		if(strlen($hash) == 32) return (md5($password) == $hash); // for backward compatibility with old password hashes
 		return password_verify($password, $hash);
 	}
 
@@ -197,9 +174,9 @@
 		/* continue only if PHP 5.5+ and hash is 32 chars (md5) */
 		if(version_compare(PHP_VERSION, '5.5.0') == -1 || strlen($hash) > 32) return;
 
-		$new_hash = password_hash($pass, PASSWORD_DEFAULT);
+		$new_hash = makeSafe(password_hash($pass, PASSWORD_DEFAULT));
 		$suser = makeSafe($user, false);
-		sql("update `membership_users` set `passMD5`='{$new_hash}' where `memberID`='{$suser}'", $eo);
+		sql("UPDATE `membership_users` SET `passMD5`='{$new_hash}' WHERE `memberID`='{$suser}'", $eo);
 	}
 
 	function update_config_app_uri() {
@@ -215,7 +192,7 @@
 		if(isset($appURI) && isset($host)) return;
 
 		// now set appURI, knowing that we're on homepage
-		save_config(array(
+		save_config([
 			'dbServer' => $dbServer,
 			'dbUsername' => $dbUsername,
 			'dbPassword' => $dbPassword,
@@ -223,6 +200,6 @@
 			'appURI' => trim(dirname($_SERVER['SCRIPT_NAME']), '/'),
 			'host' => (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'] . ($_SERVER['SERVER_PORT'] == '80' || $_SERVER['SERVER_PORT'] == '443' ? '' : ":{$_SERVER['SERVER_PORT']}")),
 			'adminConfig' => $adminConfig
-		));
+		]);
 	}
 

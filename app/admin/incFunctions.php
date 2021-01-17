@@ -28,7 +28,6 @@
 		toBytes($val)
 		convertLegacyOptions($CSVList)
 		getValueGivenCaption($query, $caption)
-		undo_magic_quotes($str)
 		time24($t) -- return time in 24h format
 		time12($t) -- return time in 12h format
 		application_url($page) -- return absolute URL of provided page
@@ -40,7 +39,6 @@
 		maintenance_mode($new_status = '') -- retrieves (and optionally sets) maintenance mode status
 		html_attr($str) -- prepare $str to be placed inside an HTML attribute
 		html_attr_tags_ok($str) -- same as html_attr, but allowing HTML tags
-		Request($var) -- class for providing sanitized values of given request variable (->sql, ->attr, ->html, ->url, and ->raw)
 		Notification() -- class for providing a standardized html notifications functionality
 		sendmail($mail) -- sends an email using PHPMailer as specified in the assoc array $mail( ['to', 'name', 'subject', 'message', 'debug'] ) and returns true on success or an error message on failure
 		safe_html($str) -- sanitize HTML strings, and apply nl2br() to non-HTML ones
@@ -67,6 +65,17 @@
 		test($subject, $test) -- perform a test and return results
 		invoke_method($object, $methodName, $param_array) -- invoke a private/protected method of a given object
 		invoke_static_method($class, $methodName, $param_array) -- invoke a private/protected method of a given class statically
+		get_parent_tables($tn) -- returns parents of given table: ['parent table' => [main lookup fields in child], ..]
+		backtick_keys_once($data) -- wraps keys of given array with backticks ` if not already wrapped. Useful for use with fieldnames passed to update() and insert()
+		calculated_fields() -- returns calculated fields config array: [table => [field => query, ..], ..]
+		update_calc_fields($table, $id, $formulas, $mi = false) -- updates record of given $id in given $table according to given $formulas on behalf of user specified in given info array (or current user if false)
+		latest_jquery() -- detects and returns the name of the latest jQuery file found in resources/jquery/js
+		existing_value($tn, $fn, $id, $cache = true) -- returns (cached) value of field $fn of record having $id in table $tn. Set $cache to false to bypass caching.
+		checkAppRequirements() -- if PHP doesn't meet app requirements, outputs error and exits
+		getRecord($table, $id) -- return the record having a PK of $id from $table as an associative array, falsy value on error/not found
+		guessMySQLDateTime($dt) -- if $dt is not already a mysql date/datetime, use mysql_datetime() to convert then return mysql date/datetime. Returns false if $dt invalid or couldn't be detected.
+		pkGivenLookupText($val, $tn, $lookupField, $falseIfNotFound) -- returns corresponding PK value for given $val which is the textual lookup value for given $lookupField in given $tn table. If $val has no corresponding PK value, $val is returned as-is, unless $falseIfNotFound is set to true, in which case false is returned.
+		userCanImport() -- returns true if user (or his group) can import CSV files (through the permission set in the group page in the admin area).
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	*/
 	########################################################################
@@ -76,7 +85,7 @@
 	}
 	########################################################################
 	function get_tables_info($skip_authentication = false) {
-		static $all_tables = array(), $accessible_tables = array();
+		static $all_tables = [], $accessible_tables = [];
 
 		/* return cached results, if found */
 		if(($skip_authentication || getLoggedAdmin()) && count($all_tables)) return $all_tables;
@@ -109,7 +118,7 @@
 
 		foreach($all_tables as $tn => $ti) {
 			$arrPerm = getTablePermissions($tn);
-			if($arrPerm[0]) $accessible_tables[$tn] = $ti;
+			if($arrPerm['access']) $accessible_tables[$tn] = $ti;
 		}
 
 		return $accessible_tables;
@@ -134,134 +143,125 @@
 		return FALSE;
 	}
 	########################################################################
-	function createThumbnail($img, $specs){
-		$w=$specs['width'];
-		$h=$specs['height'];
-		$id=$specs['identifier'];
-		$path=dirname($img);
+	function createThumbnail($img, $specs) {
+		$w = $specs['width'];
+		$h = $specs['height'];
+		$id = $specs['identifier'];
+		$path = dirname($img);
 
 		// image doesn't exist or inaccessible?
-		if(!$size=@getimagesize($img))   return FALSE;
+		if(!$size = @getimagesize($img)) return false;
 
 		// calculate thumbnail size to maintain aspect ratio
-		$ow=$size[0]; // original image width
-		$oh=$size[1]; // original image height
-		$twbh=$h/$oh*$ow; // calculated thumbnail width based on given height
-		$thbw=$w/$ow*$oh; // calculated thumbnail height based on given width
-		if($w && $h){
-			if($twbh>$w) $h=$thbw;
-			if($thbw>$h) $w=$twbh;
-		}elseif($w){
-			$h=$thbw;
-		}elseif($h){
-			$w=$twbh;
-		}else{
-			return FALSE;
+		$ow = $size[0]; // original image width
+		$oh = $size[1]; // original image height
+		$twbh = $h / $oh * $ow; // calculated thumbnail width based on given height
+		$thbw = $w / $ow * $oh; // calculated thumbnail height based on given width
+		if($w && $h) {
+			if($twbh > $w) $h = $thbw;
+			if($thbw > $h) $w = $twbh;
+		} elseif($w) {
+			$h = $thbw;
+		} elseif($h) {
+			$w = $twbh;
+		} else {
+			return false;
 		}
 
 		// dir not writeable?
-		if(!is_writable($path))  return FALSE;
+		if(!is_writable($path)) return false;
 
 		// GD lib not loaded?
-		if(!function_exists('gd_info'))  return FALSE;
-		$gd=gd_info();
+		if(!function_exists('gd_info')) return false;
+		$gd = gd_info();
 
 		// GD lib older than 2.0?
 		preg_match('/\d/', $gd['GD Version'], $gdm);
-		if($gdm[0]<2)    return FALSE;
+		if($gdm[0] < 2) return false;
 
 		// get file extension
 		preg_match('/\.[a-zA-Z]{3,4}$/U', $img, $matches);
-		$ext=strtolower($matches[0]);
+		$ext = strtolower($matches[0]);
 
 		// check if supplied image is supported and specify actions based on file type
-		if($ext=='.gif'){
-			if(!$gd['GIF Create Support'])   return FALSE;
-			$thumbFunc='imagegif';
-		}elseif($ext=='.png'){
-			if(!$gd['PNG Support'])  return FALSE;
-			$thumbFunc='imagepng';
-		}elseif($ext=='.jpg' || $ext=='.jpe' || $ext=='.jpeg'){
-			if(!$gd['JPG Support'] && !$gd['JPEG Support'])  return FALSE;
-			$thumbFunc='imagejpeg';
-		}else{
-			return FALSE;
+		if($ext == '.gif') {
+			if(!$gd['GIF Create Support']) return false;
+			$thumbFunc = 'imagegif';
+		} elseif($ext == '.png') {
+			if(!$gd['PNG Support'])  return false;
+			$thumbFunc = 'imagepng';
+		} elseif($ext == '.jpg' || $ext == '.jpe' || $ext == '.jpeg') {
+			if(!$gd['JPG Support'] && !$gd['JPEG Support'])  return false;
+			$thumbFunc = 'imagejpeg';
+		} else {
+			return false;
 		}
 
 		// determine thumbnail file name
-		$ext=$matches[0];
-		$thumb=substr($img, 0, -5).str_replace($ext, $id.$ext, substr($img, -5));
+		$ext = $matches[0];
+		$thumb = substr($img, 0, -5) . str_replace($ext, $id . $ext, substr($img, -5));
 
 		// if the original image smaller than thumb, then just copy it to thumb
-		if($h>$oh && $w>$ow){
-			return (@copy($img, $thumb) ? TRUE : FALSE);
+		if($h > $oh && $w > $ow) {
+			return (@copy($img, $thumb) ? true : false);
 		}
 
 		// get image data
-		if(!$imgData=imagecreatefromstring(implode('', file($img)))) return FALSE;
+		if(!$imgData = imagecreatefromstring(implode('', file($img)))) return false;
 
 		// finally, create thumbnail
-		$thumbData=imagecreatetruecolor($w, $h);
+		$thumbData = imagecreatetruecolor($w, $h);
 
 		//preserve transparency of png and gif images
-		if($thumbFunc=='imagepng'){
-			if(($clr=@imagecolorallocate($thumbData, 0, 0, 0))!=-1){
+		if($thumbFunc == 'imagepng') {
+			if(($clr = @imagecolorallocate($thumbData, 0, 0, 0)) != -1) {
 				@imagecolortransparent($thumbData, $clr);
 				@imagealphablending($thumbData, false);
 				@imagesavealpha($thumbData, true);
 			}
-		}elseif($thumbFunc=='imagegif'){
+		} elseif($thumbFunc == 'imagegif') {
 			@imagealphablending($thumbData, false);
-			$transIndex=imagecolortransparent($imgData);
-			if($transIndex>=0){
-				$transClr=imagecolorsforindex($imgData, $transIndex);
-				$transIndex=imagecolorallocatealpha($thumbData, $transClr['red'], $transClr['green'], $transClr['blue'], 127);
+			$transIndex = imagecolortransparent($imgData);
+			if($transIndex >= 0) {
+				$transClr = imagecolorsforindex($imgData, $transIndex);
+				$transIndex = imagecolorallocatealpha($thumbData, $transClr['red'], $transClr['green'], $transClr['blue'], 127);
 				imagefill($thumbData, 0, 0, $transIndex);
 			}
 		}
 
 		// resize original image into thumbnail
-		if(!imagecopyresampled($thumbData, $imgData, 0, 0 , 0, 0, $w, $h, $ow, $oh)) return FALSE;
+		if(!imagecopyresampled($thumbData, $imgData, 0, 0 , 0, 0, $w, $h, $ow, $oh)) return false;
 		unset($imgData);
 
 		// gif transparency
-		if($thumbFunc=='imagegif' && $transIndex>=0){
+		if($thumbFunc == 'imagegif' && $transIndex >= 0) {
 			imagecolortransparent($thumbData, $transIndex);
-			for($y=0; $y<$h; ++$y)
-				for($x=0; $x<$w; ++$x)
-					if(((imagecolorat($thumbData, $x, $y)>>24) & 0x7F) >= 100)   imagesetpixel($thumbData, $x, $y, $transIndex);
+			for($y = 0; $y < $h; ++$y)
+				for($x = 0; $x < $w; ++$x)
+					if(((imagecolorat($thumbData, $x, $y) >> 24) & 0x7F) >= 100) imagesetpixel($thumbData, $x, $y, $transIndex);
 			imagetruecolortopalette($thumbData, true, 255);
 			imagesavealpha($thumbData, false);
 		}
 
-		if(!$thumbFunc($thumbData, $thumb))  return FALSE;
+		if(!$thumbFunc($thumbData, $thumb)) return false;
 		unset($thumbData);
 
-		return TRUE;
+		return true;
 	}
 	########################################################################
-	function makeSafe($string, $is_gpc = true){
-		if($is_gpc) $string = (get_magic_quotes_gpc() ? stripslashes($string) : $string);
-		if(!db_link()){ sql("select 1+1", $eo); }
+	function makeSafe($string, $is_gpc = true) {
+		static $cached = []; /* str => escaped_str */
 
-		// prevent double escaping
-		$na = explode(',', "\x00,\n,\r,',\",\x1a");
-		$escaped = true;
-		$nosc = true; // no special chars exist
-		foreach($na as $ns){
-			$dan = substr_count($string, $ns);
-			$esdan = substr_count($string, "\\{$ns}");
-			if($dan != $esdan) $escaped = false;
-			if($dan) $nosc = false;
-		}
-		if($nosc){
-			// find unescaped \
-			$dan = substr_count($string, '\\');
-			$esdan = substr_count($string, '\\\\');
-			if($dan != $esdan * 2) $escaped = false;
-		}
+		if(!db_link()) sql("SELECT 1+1", $eo);
 
-		return ($escaped ? $string : db_escape($string));
+		// if this is a previously escaped string, return from cached
+		// checking both keys and values
+		if(isset($cached[$string])) return $cached[$string];
+		$key = array_search($string, $cached);
+		if($key !== false) return $string; // already an escaped string
+
+		$cached[$string] = db_escape($string);
+		return $cached[$string];
 	}
 	########################################################################
 	function checkPermissionVal($pvn) {
@@ -270,13 +270,13 @@
 		$pvn=intval($_POST[$pvn]);
 		if($pvn!=1 && $pvn!=2 && $pvn!=3) {
 			return 0;
-		}else{
+		} else {
 			return $pvn;
 		}
 	}
 	########################################################################
-	if(!function_exists('sql')){
-		function sql($statment, &$o){
+	if(!function_exists('sql')) {
+		function sql($statment, &$o) {
 
 			/*
 				Supported options that can be passed in $o options array (as array keys):
@@ -297,10 +297,10 @@
 
 			ob_start();
 
-			if(!$connected){
+			if(!$connected) {
 				/****** Connect to MySQL ******/
-				if(!extension_loaded('mysql') && !extension_loaded('mysqli')){
-					$o['error'] = 'PHP is not configured to connect to MySQL on this machine. Please see <a href="http://www.php.net/manual/en/ref.mysql.php">this page</a> for help on how to configure MySQL.';
+				if(!extension_loaded('mysql') && !extension_loaded('mysqli')) {
+					$o['error'] = 'PHP is not configured to connect to MySQL on this machine. Please see <a href="https://www.php.net/manual/en/ref.mysql.php">this page</a> for help on how to configure MySQL.';
 					if($o['silentErrors']) return false;
 
 					@include_once($header);
@@ -315,7 +315,7 @@
 					exit;
 				}
 
-				if(!($db_link = @db_connect($dbServer, $dbUsername, $dbPassword))){
+				if(!($db_link = @db_connect($dbServer, $dbUsername, $dbPassword))) {
 					$o['error'] = db_error($db_link, true);
 					if($o['silentErrors']) return false;
 
@@ -332,7 +332,7 @@
 				}
 
 				/****** Select DB ********/
-				if(!db_select_db($dbDatabase, $db_link)){
+				if(!db_select_db($dbDatabase, $db_link)) {
 					$o['error'] = db_error($db_link);
 					if($o['silentErrors']) return false;
 
@@ -351,15 +351,15 @@
 				$connected = true;
 			}
 
-			if(!$result = @db_query($statment, $db_link)){
-				if(!stristr($statment, "show columns")){
+			if(!$result = @db_query($statment, $db_link)) {
+				if(!stristr($statment, "show columns")) {
 					// retrieve error codes
 					$errorNum = db_errno($db_link);
 					$errorMsg = htmlspecialchars(db_error($db_link));
 
-					if(getLoggedAdmin()) $errorMsg .= "<pre class=\"ltr\">{$Translation['query:']}\n" . htmlspecialchars($statment) . "</pre><p><i class=\"text-right\">{$Translation['admin-only info']}</i></p><p>{$Translation['rebuild fields']}</p>";
+					if(getLoggedAdmin()) $errorMsg .= "<pre class=\"ltr\">{$Translation['query:']}\n" . htmlspecialchars($statment) . "</pre><p><i class=\"text-right\">{$Translation['admin-only info']}</i></p><p>{$Translation['try rebuild fields']}</p>";
 
-					if($o['silentErrors']){ $o['error'] = $errorMsg; return false; }
+					if($o['silentErrors']) { $o['error'] = $errorMsg; return false; }
 
 					@include_once($header);
 					echo Notification::placeholder();
@@ -382,7 +382,7 @@
 	########################################################################
 	function sqlValue($statment, &$error = NULL) {
 		// executes a statment that retreives a single data value and returns the value retrieved
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 		if(!$res = sql($statment, $eo)) { $error = $eo['error']; return false; }
 		if(!$row = db_fetch_row($res)) return false;
 		return $row[0];
@@ -421,28 +421,38 @@
 	}
 	########################################################################
 	function initSession() {
+		$sh = @ini_get('session.save_handler');
+
+		$options = [
+			'name' => 'pocket_money',
+			'save_handler' => stripos($sh, 'memcache') === false ? 'files' : $sh,
+			'serialize_handler' => 'php',
+			'cookie_lifetime' => '0',
+			'cookie_path' => '/' . trim(config('appURI'), '/'),
+			'cookie_httponly' => '1',
+			'use_strict_mode' => '1',
+			'use_cookies' => '1',
+			'use_only_cookies' => '1',
+			'cache_limiter' => $_SERVER['REQUEST_METHOD'] == 'POST' ? 'private' : 'nocache',
+			'cache_expire' => '2',
+		];
+
+		// hook: session_options(), if defined, $options is passed to it by reference
+		// to override default session behavior.
+		// should be defined in hooks/bootstrap.php
+		if(function_exists('session_options')) session_options($options);
+
 		// check sessions config
 		$noPathCheck = true; // set to false for debugging session issues
 		$arrPath = explode(';', ini_get('session.save_path'));
 		$save_path = $arrPath[count($arrPath) - 1];
-		if(!$noPathCheck && !is_dir($save_path)) {
-			die("Invalid session.save_path in php.ini");
-		}
+		if(!$noPathCheck && !is_dir($save_path)) die('Invalid session.save_path in php.ini');
 
 		if(session_id()) { session_write_close(); }
 
-		$configured_save_handler = @ini_get('session.save_handler');
-		if($configured_save_handler != 'memcache' && $configured_save_handler != 'memcached')
-			@ini_set('session.save_handler', 'files');
+		foreach($options as $key => $value)
+			@ini_set("session.{$key}", $value);
 
-		@ini_set('session.serialize_handler', 'php');
-		@ini_set('session.use_cookies', '1');
-		@ini_set('session.use_only_cookies', '1');
-		@ini_set('session.cookie_httponly', '1');
-		@ini_set('session.use_strict_mode', '1');
-		@session_cache_expire(2);
-		@session_cache_limiter($_SERVER['REQUEST_METHOD'] == 'POST' ? 'private' : 'nocache');
-		@session_name('pocket_money');
 		session_start();
 	}
 	########################################################################
@@ -583,19 +593,17 @@
 	########################################################################
 	function getPKFieldName($tn) {
 		// get pk field name of given table
+		static $pk = [];
+		if(isset($pk[$tn])) return $pk[$tn];
 
 		$stn = makeSafe($tn, false);
-		if(!$res = sql("show fields from `$stn`", $eo)) {
-			return false;
-		}
+		$eo = ['silentErrors' => true];
+		if(!$res = sql("SHOW FIELDS FROM `$stn`", $eo)) return $pk[$tn] = false;
 
-		while($row = db_fetch_assoc($res)) {
-			if($row['Key'] == 'PRI') {
-				return $row['Field'];
-			}
-		}
+		while($row = db_fetch_assoc($res))
+			if($row['Key'] == 'PRI') return $pk[$tn] = $row['Field'];
 
-		return false;
+		return $pk[$tn] = false;
 	}
 	########################################################################
 	function getCSVData($tn, $pkValue, $stripTags=true) {
@@ -682,7 +690,7 @@
 				$arrCap[] = $row[1];
 			}
 			return htmlSelect($name, $arrVal, $arrCap, $selectedValue, $class, $selectedClass);
-		}else{
+		} else {
 			return "";
 		}
 	}
@@ -718,11 +726,7 @@
 	}
 	########################################################################
 	function isEmail($email) {
-		if(preg_match('/^([*+!.&#$¦\'\\%\/0-9a-z^_`{}=?~:-]+)@(([0-9a-z-]+\.)+[0-9a-z]{2,45})$/i', $email)) {
-			return $email;
-		}
-
-		return false;
+		return filter_var(trim($email), FILTER_VALIDATE_EMAIL);
 	}
 	########################################################################
 	function notifyMemberApproval($memberID) {
@@ -782,7 +786,7 @@
 	}
 	########################################################################
 	function configure_anonymous_group() {
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		$adminConfig = config('adminConfig');
 		$today = @date('Y-m-d');
@@ -819,7 +823,7 @@
 	}
 	########################################################################
 	function configure_admin_group() {
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		$adminConfig = config('adminConfig');
 		$today = @date('Y-m-d');
@@ -864,7 +868,7 @@
 	}
 	########################################################################
 	function get_table_keys($tn) {
-		$keys = array();
+		$keys = [];
 		$res = sql("SHOW KEYS FROM `{$tn}`", $eo);
 		while($row = db_fetch_assoc($res))
 			$keys[$row['Key_name']][$row['Seq_in_index']] = $row;
@@ -872,37 +876,58 @@
 		return $keys;
 	}
 	########################################################################
-	function get_table_fields($tn) {
-		$fields = array();
-		$res = sql("SHOW COLUMNS FROM `{$tn}`", $eo);
-		while($row = db_fetch_assoc($res))
-			$fields[$row['Field']] = $row;
+	function get_table_fields($tn = null) {
+		static $schema = null;
+		if($schema === null) {
+			/* application schema as created in AppGini */
+			$schema = [
+				'kids' => [
+					'id' => ['appgini' => "INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT"],
+					'name' => ['appgini' => "VARCHAR(40) NOT NULL UNIQUE"],
+					'pocket_money' => ['appgini' => "DECIMAL(10,2) NULL"],
+					'photo' => ['appgini' => "VARCHAR(40) NULL"],
+					'last_balance' => ['appgini' => "DECIMAL(10,2) NULL"],
+				],
+				'transactions' => [
+					'id' => ['appgini' => "INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT"],
+					'kid' => ['appgini' => "INT UNSIGNED NULL"],
+					'date' => ['appgini' => "DATETIME NULL"],
+					'amount' => ['appgini' => "DOUBLE(10,2) NULL"],
+					'description' => ['appgini' => "TEXT NULL"],
+					'balance' => ['appgini' => "DOUBLE(10,2) NULL"],
+				],
+			];
+		}
 
-		return $fields;
+		if($tn === null) return $schema;
+
+		return isset($schema[$tn]) ? $schema[$tn] : [];
 	}
 	########################################################################
 	function update_membership_groups() {
 		$tn = 'membership_groups';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `{$tn}` (
-				`groupID` INT UNSIGNED NOT NULL AUTO_INCREMENT, 
-				`name` varchar(100) NOT NULL, 
-				`description` TEXT, 
-				`allowSignup` TINYINT, 
-				`needsApproval` TINYINT, 
+				`groupID` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				`name` varchar(100) NOT NULL,
+				`description` TEXT,
+				`allowSignup` TINYINT,
+				`needsApproval` TINYINT,
+				`allowCSVImport` TINYINT NOT NULL DEFAULT '0',
 				PRIMARY KEY (`groupID`)
 			) CHARSET " . mysql_charset,
 		$eo);
 
 		sql("ALTER TABLE `{$tn}` CHANGE COLUMN `name` `name` VARCHAR(100) NOT NULL", $eo);
 		sql("ALTER TABLE `{$tn}` ADD UNIQUE INDEX `name` (`name`)", $eo);
+		sql("ALTER TABLE `{$tn}` ADD COLUMN `allowCSVImport` TINYINT NOT NULL DEFAULT '0'", $eo);
 	}
 	########################################################################
 	function update_membership_users() {
 		$tn = 'membership_users';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `{$tn}` (
@@ -920,6 +945,7 @@
 				`comments` TEXT, 
 				`pass_reset_key` VARCHAR(100),
 				`pass_reset_expiry` INT UNSIGNED,
+				`allowCSVImport` TINYINT NOT NULL DEFAULT '0', 
 				PRIMARY KEY (`memberID`),
 				INDEX `groupID` (`groupID`)
 			) CHARSET " . mysql_charset,
@@ -931,11 +957,12 @@
 		sql("ALTER TABLE `{$tn}` CHANGE COLUMN `memberID` `memberID` VARCHAR(100) NOT NULL", $eo);
 		sql("ALTER TABLE `{$tn}` ADD INDEX `groupID` (`groupID`)", $eo);
 		sql("ALTER TABLE `{$tn}` ADD COLUMN `flags` TEXT", $eo);
+		sql("ALTER TABLE `{$tn}` ADD COLUMN `allowCSVImport` TINYINT NOT NULL DEFAULT '0'", $eo);
 	}
 	########################################################################
 	function update_membership_userrecords() {
 		$tn = 'membership_userrecords';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `{$tn}` (
@@ -965,7 +992,7 @@
 	########################################################################
 	function update_membership_grouppermissions() {
 		$tn = 'membership_grouppermissions';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `{$tn}` (
@@ -985,7 +1012,7 @@
 	########################################################################
 	function update_membership_userpermissions() {
 		$tn = 'membership_userpermissions';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `{$tn}` (
@@ -1006,7 +1033,7 @@
 	########################################################################
 	function update_membership_usersessions() {
 		$tn = 'membership_usersessions';
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		sql(
 			"CREATE TABLE IF NOT EXISTS `membership_usersessions` (
@@ -1029,7 +1056,7 @@
 		$currDir=dirname(__FILE__);
 		if(is_array($_FILES)) {
 			$f = $_FILES[$FieldName];
-		}else{
+		} else {
 			return 'Your php settings don\'t allow file uploads.';
 		}
 
@@ -1053,7 +1080,7 @@
 
 			if($NoRename) {
 				$n  = str_replace(' ', '_', $f['name']);
-			}else{
+			} else {
 				$n  = microtime();
 				$n  = str_replace(' ', '_', $n);
 				$n  = str_replace('0.', '', $n);
@@ -1062,7 +1089,7 @@
 
 			if(!@move_uploaded_file($f['tmp_name'], $dir . $n)) {
 				return 'Couldn\'t save the uploaded file. Try chmoding the upload folder "'.$dir.'" to 777.';
-			}else{
+			} else {
 				@chmod($dir.$n, 0666);
 				return $dir.$n;
 			}
@@ -1072,7 +1099,7 @@
 	########################################################################
 	function toBytes($val) {
 		$val = trim($val);
-		$last = strtolower($val{strlen($val)-1});
+		$last = strtolower($val[strlen($val)-1]);
 		switch($last) {
 			 // The 'G' modifier is available since PHP 5.1.0
 			 case 'g':
@@ -1089,7 +1116,7 @@
 	function convertLegacyOptions($CSVList) {
 		$CSVList=str_replace(';;;', ';||', $CSVList);
 		$CSVList=str_replace(';;', '||', $CSVList);
-		return $CSVList;
+		return trim($CSVList, '|');
 	}
 	########################################################################
 	function getValueGivenCaption($query, $caption) {
@@ -1101,18 +1128,14 @@
 
 		// get where clause if present
 		if(preg_match('/\s+from\s+(.*?)\s+where\s+(.*?)\s+order by.*/i', $query, $mw)) {
-			$where="where ($mw[2]) AND";
-			$m[3]=$mw[1];
-		}else{
-			$where='where';
+			$where = "where ({$mw[2]}) AND";
+			$m[3] = $mw[1];
+		} else {
+			$where = 'where';
 		}
 
-		$caption=makeSafe($caption);
-		return sqlValue("SELECT $m[1] FROM $m[3] $where $m[2]='$caption'");
-	}
-	########################################################################
-	function undo_magic_quotes($str) {
-		return (get_magic_quotes_gpc() ? stripslashes($str) : $str);
+		$caption = makeSafe($caption);
+		return sqlValue("SELECT {$m[1]} FROM {$m[3]} {$where} {$m[2]}='{$caption}'");
 	}
 	########################################################################
 	function time24($t = false) {
@@ -1229,7 +1252,7 @@
 	}
 	########################################################################
 	function get_plugins() {
-		$plugins = array();
+		$plugins = [];
 		$plugins_path = dirname(__FILE__) . '/../plugins/';
 
 		if(!is_dir($plugins_path)) return $plugins;
@@ -1255,7 +1278,7 @@
 		if($new_status === true) {
 			/* turn on maintenance mode */
 			@touch($maintenance_file);
-		}elseif($new_status === false) {
+		} elseif($new_status === false) {
 			/* turn off maintenance mode */
 			@unlink($maintenance_file);
 		}
@@ -1289,29 +1312,6 @@
 		// use this instead of html_attr() if you don't want html tags to be escaped
 		$new_str = html_attr($str);
 		return str_replace(array('&lt;', '&gt;'), array('<', '>'), $new_str);
-	}
-	#########################################################
-	class Request{
-		var $sql, $url, $attr, $html, $raw;
-
-		function __construct($var, $filter = false) {
-			$this->Request($var, $filter);
-		}
-
-		function Request($var, $filter = false) {
-			$unsafe = (isset($_REQUEST[$var]) ? $_REQUEST[$var] : '');
-			if(get_magic_quotes_gpc()) $unsafe = stripslashes($unsafe);
-
-			if($filter) {
-				$unsafe = call_user_func_array($filter, array($unsafe));
-			}
-
-			$this->sql = makeSafe($unsafe, false);
-			$this->url = urlencode($unsafe);
-			$this->attr = html_attr($unsafe);
-			$this->html = html_attr($unsafe);
-			$this->raw = $unsafe;
-		}
 	}
 	#########################################################
 	class Notification{
@@ -1381,7 +1381,7 @@
 
 						/* dismiss after x seconds if requested */
 						if(options.dismiss_seconds > 0) {
-							setTimeout(function() { /* */ this_notif.addClass('invisible'); }, options.dismiss_seconds * 1000);
+							setTimeout(function() { this_notif.addClass('invisible'); }, options.dismiss_seconds * 1000);
 						}
 
 						/* dismiss for x days if requested and user dismisses it */
@@ -1424,7 +1424,7 @@
 		 *  
 		 *  @return html code for displaying the notifcation
 		 */
-		public static function show($options = array()) {
+		public static function show($options = []) {
 			self::default_options($options);
 
 			ob_start();
@@ -1456,8 +1456,8 @@
 
 		if(!class_exists('PHPMailer', false)) {
 			$curr_dir = dirname(__FILE__);
-			include("{$curr_dir}/../resources/PHPMailer/class.phpmailer.php");
-			if($smtp) include("{$curr_dir}/../resources/PHPMailer/class.smtp.php");
+			include_once("{$curr_dir}/../resources/PHPMailer/class.phpmailer.php");
+			if($smtp) include_once("{$curr_dir}/../resources/PHPMailer/class.smtp.php");
 		}
 
 		$pm = new PHPMailer;
@@ -1497,8 +1497,7 @@
 		/* if $str has no HTML tags, apply nl2br */
 		if($str == strip_tags($str)) return nl2br($str);
 
-		$hc = new CI_Input();
-		$hc->charset = datalist_db_encoding;
+		$hc = new CI_Input(datalist_db_encoding);
 
 		return $hc->xss_clean($str);
 	}
@@ -1506,7 +1505,7 @@
 	function getLoggedGroupID() {
 		if($_SESSION['memberGroupID'] != '') {
 			return $_SESSION['memberGroupID'];
-		}else{
+		} else {
 			if(!setAnonymousAccess()) return false;
 			return getLoggedGroupID();
 		}
@@ -1515,7 +1514,7 @@
 	function getLoggedMemberID() {
 		if($_SESSION['memberID']!='') {
 			return strtolower($_SESSION['memberID']);
-		}else{
+		} else {
 			if(!setAnonymousAccess()) return false;
 			return getLoggedMemberID();
 		}
@@ -1526,7 +1525,7 @@
 		$anon_group_safe = addslashes($adminConfig['anonymousGroup']);
 		$anon_user_safe = strtolower(addslashes($adminConfig['anonymousMember']));
 
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 
 		$res = sql("select groupID from membership_groups where name='{$anon_group_safe}'", $eo);
 		if(!$res) { return false; }
@@ -1544,7 +1543,7 @@
 	}
 	#########################################################
 	function getMemberInfo($memberID = '') {
-		static $member_info = array();
+		static $member_info = [];
 
 		if(!$memberID) {
 			$memberID = getLoggedMemberID();
@@ -1554,7 +1553,7 @@
 		if(isset($member_info[$memberID])) return $member_info[$memberID];
 
 		$adminConfig = config('adminConfig');
-		$mi = array();
+		$mi = [];
 
 		if($memberID) {
 			$res = sql("select * from membership_users where memberID='" . makeSafe($memberID) . "'", $eo);
@@ -1599,7 +1598,7 @@
 	 *  @return SET string
 	 */
 	function prepare_sql_set($set_array, $glue = ', ') {
-		$fnvs = array();
+		$fnvs = [];
 		foreach($set_array as $fn => $fv) {
 			if($fv === null) { $fnvs[] = "{$fn}=NULL"; continue; }
 
@@ -1621,7 +1620,7 @@
 		$set = prepare_sql_set($set_array);
 		if(!$set) return false;
 
-		$eo = array('silentErrors' => true);
+		$eo = ['silentErrors' => true];
 		$res = sql("INSERT INTO `{$tn}` SET {$set}", $eo);
 		if($res) return true;
 
@@ -1635,16 +1634,22 @@
 	 *  @param [in] $tn table name where the record would be updated
 	 *  @param [in] $set_array Assoc array of field names => values to be updated
 	 *  @param [in] $where_array Assoc array of field names => values used to build the WHERE clause
+	 *  @param [out] $error optional string containing error message if insert fails
 	 *  @return boolean indicating success/failure
 	 */
-	function update($tn, $set_array, $where_array) {
+	function update($tn, $set_array, $where_array, &$error = '') {
 		$set = prepare_sql_set($set_array);
 		if(!$set) return false;
 
 		$where = prepare_sql_set($where_array, ' AND ');
 		if(!$where) $where = '1=1';
 
-		return sql("UPDATE `{$tn}` SET {$set} WHERE {$where}", $eo);
+		$eo = ['silentErrors' => true];
+		$res = sql("UPDATE `{$tn}` SET {$set} WHERE {$where}", $eo);
+		if($res) return true;
+
+		$error = $eo['error'];
+		return false;
 	}
 	#########################################################
 	/**
@@ -1652,38 +1657,35 @@
 	 *  
 	 *  @param [in] $tn name of table
 	 *  @param [in] $pk primary key value
-	 *  @param [in] $user username to set as owner
+	 *  @param [in] $user username to set as owner. If not provided (or false), update dateUpdated only
 	 *  @return boolean indicating success/failure
 	 */
-	function set_record_owner($tn, $pk, $user) {
-		$fields = array(
+	function set_record_owner($tn, $pk, $user = false) {
+		$fields = [
 			'memberID' => strtolower($user),
 			'dateUpdated' => time(),
 			'groupID' => get_group_id($user)
-		);
+		];
 
-		$where_array = array('tableName' => $tn, 'pkValue' => $pk);
+		// don't update user if false
+		if($user === false) unset($fields['memberID'], $fields['groupID']);
+
+		$where_array = ['tableName' => $tn, 'pkValue' => $pk];
 		$where = prepare_sql_set($where_array, ' AND ');
 		if(!$where) return false;
 
-		/* do we have an ownership record? */
-		$ownership_exists = false;
+		/* do we have an existing ownership record? */
 		$res = sql("SELECT * FROM `membership_userrecords` WHERE {$where}", $eo);
 		if($row = db_fetch_assoc($res)) {
-			$existing_owner = $row['memberID'];
-			$ownership_exists = true;
-		}
+			if($row['memberID'] == $user) return true; // owner already set to $user
 
-		if($existing_owner == $user) return true; // owner already set to $user
-
-		/* update owner */
-		if($ownership_exists) {
+			/* update owner and/or dateUpdated */
 			$res = update('membership_userrecords', backtick_keys_once($fields), $where_array);
 			return ($res ? true : false);
 		}
 
 		/* add new ownership record */
-		$fields = array_merge($fields, $where_array, array('dateAdded' => time()));
+		$fields = array_merge($fields, $where_array, ['dateAdded' => time()]);
 		$res = insert('membership_userrecords', backtick_keys_once($fields));
 		return ($res ? true : false);
 	}
@@ -1695,8 +1697,8 @@
 	 *  @param [in] $datetime string, one of these: 'd' = date, 't' = time, 'dt' = both
 	 *  @return string
 	 */
-	function app_datetime_format($destination = 'php', $datetime = 'd'){
-		switch(strtolower($destination)){
+	function app_datetime_format($destination = 'php', $datetime = 'd') {
+		switch(strtolower($destination)) {
 			case 'mysql':
 				$date = '%d/%m/%Y';
 				$time = '%h:%i:%s %p';
@@ -1722,8 +1724,6 @@
 	 *  @param [in] $subject string used as title of test
 	 *  @param [in] $test callable function containing the test to be performed, should return true on success, false or a log string on error
 	 *  @return test result
-	 *  
-	 *  @details if the constant 'datalist_db_encoding' is not defined, original string is returned
 	 */
 	function test($subject, $test) {
 		ob_start();
@@ -1746,10 +1746,8 @@
 	 *  @param [in] $methodName string name of method to invoke
 	 *  @param [in] $parameters array of parameters to pass to the method
 	 *  @return the returned value from the invoked method
-	 *  
-	 *  @details if the constant 'datalist_db_encoding' is not defined, original string is returned
 	 */
-	function invoke_method(&$object, $methodName, array $parameters = array()) {
+	function invoke_method(&$object, $methodName, array $parameters = []) {
 		$reflection = new ReflectionClass(get_class($object));
 		$method = $reflection->getMethod($methodName);
 		$method->setAccessible(true);
@@ -1758,16 +1756,35 @@
 	}
 	#########################################################
 	/**
+	 *  @brief retrieve the value of a property of an object -- useful to retrieve private/protected props
+	 *  
+	 *  @param [in] $object instance of object containing the method
+	 *  @param [in] $propName string name of property to retrieve
+	 *  @return the returned value of the given property, or null if property doesn't exist
+	 */
+	function get_property(&$object, $propName) {
+		$reflection = new ReflectionClass(get_class($object));
+		try {
+			$prop = $reflection->getProperty($propName);
+		} catch(Exception $e) {
+			return null;
+		}
+
+		$prop->setAccessible(true);
+
+		return $prop->getValue($object);
+	}
+
+	#########################################################
+	/**
 	 *  @brief invoke a method of a static class -- useful to call private/protected methods
 	 *  
 	 *  @param [in] $class string name of the class containing the method
 	 *  @param [in] $methodName string name of method to invoke
 	 *  @param [in] $parameters array of parameters to pass to the method
 	 *  @return the returned value from the invoked method
-	 *  
-	 *  @details if the constant 'datalist_db_encoding' is not defined, original string is returned
 	 */
-	function invoke_static_method($class, $methodName, array $parameters = array()) {
+	function invoke_static_method($class, $methodName, array $parameters = []) {
 		$reflection = new ReflectionClass($class);
 		$method = $reflection->getMethod($methodName);
 		$method->setAccessible(true);
@@ -1779,7 +1796,7 @@
 	 *  @param [in] $app_datetime string, a datetime formatted in app-specific format
 	 *  @return string, mysql-formatted datetime, 'yyyy-mm-dd H:i:s', or empty string on error
 	 */
-	function mysql_datetime($app_datetime, $date_format = null, $time_format = null){
+	function mysql_datetime($app_datetime, $date_format = null, $time_format = null) {
 		$app_datetime = trim($app_datetime);
 
 		if($date_format === null) $date_format = app_datetime_format('php', 'd');
@@ -1810,7 +1827,7 @@
 
 		// extract date and time
 		$time = '';
-		$mat = array();
+		$mat = [];
 		$regex = "/^({$date_regex})(\s+{$time_regex})?$/i";
 		$valid_dt = preg_match($regex, $app_datetime, $mat);
 		if(!$valid_dt || count($mat) < 5) return ''; // invlaid datetime
@@ -1845,6 +1862,9 @@
 	 */  
 	function app_datetime($mysql_datetime, $datetime = 'd') {
 		$pyear = $myear = substr($mysql_datetime, 0, 4);
+
+		// if date is 0 (0000-00-00) return empty string
+		if(!$mysql_datetime || substr($mysql_datetime, 0, 10) == '0000-00-00') return '';
 
 		// strtotime handles dates between 1902 and 2037 only
 		// so we need a temp date for dates outside this range ...
@@ -1892,13 +1912,13 @@
 		 *         where parents array:
 		 *             'parent table' => [main lookup fields in child]
 		 */
-		$parents = array(
-			'transactions' => array(
-				'kids' => array('kid'),
-			),
-		);
+		$parents = [
+			'transactions' => [
+				'kids' => ['kid'],
+			],
+		];
 
-		return isset($parents[$table]) ? $parents[$table] : array();
+		return isset($parents[$table]) ? $parents[$table] : [];
 	}
 	#########################################################
 	function backtick_keys_once($arr_data) {
@@ -1949,16 +1969,21 @@ WHERE
 		if($mi === false) $mi = getMemberInfo();
 		$pk = getPKFieldName($table);
 		$safe_id = makeSafe($id);
-		$eo = array('silentErrors' => true);
-		$caluclations_made = array();
+		$eo = ['silentErrors' => true];
+		$caluclations_made = [];
 		$replace = array(
 			'%ID%' => $safe_id,
 			'%USERNAME%' => makeSafe($mi['username']),
 			'%GROUPID%' => makeSafe($mi['groupID']),
-			'%GROUP%' => makeSafe($mi['group'])
+			'%GROUP%' => makeSafe($mi['group']),
+			'%TABLENAME%' => makeSafe($table),
+			'%PKFIELD%' => makeSafe($pk),
 		);
 
 		foreach($formulas as $field => $query) {
+			// for queries that include unicode entities, replace them with actual unicode characters
+			if(preg_match('/&#\d{2,5};/', $query)) $query = entitiesToUTF8($query);
+
 			$query = str_replace(array_keys($replace), array_values($replace), $query);
 			$calc_value = sqlValue($query);
 			if($calc_value  === false) continue;
@@ -1979,3 +2004,192 @@ WHERE
 		return $caluclations_made;
 	}
 	#########################################################
+	function latest_jquery() {
+		$jquery_dir = dirname(__FILE__) . '/../resources/jquery/js';
+
+		$files = scandir($jquery_dir, SCANDIR_SORT_DESCENDING);
+		foreach($files as $entry) {
+			if(preg_match('/^jquery[-0-9\.]*\.min\.js$/i', $entry))
+				return $entry;
+		}
+
+		return '';
+	}
+	#########################################################
+	function existing_value($tn, $fn, $id, $cache = true) {
+		/* cache results in records[tablename][id] */
+		static $record = [];
+
+		if($cache && !empty($record[$tn][$id])) return $record[$tn][$id][$fn];
+		if(!$pk = getPKFieldName($tn)) return false;
+
+		$sid = makeSafe($id);
+		$eo = ['silentErrors' => true];
+		$res = sql("SELECT * FROM `{$tn}` WHERE `{$pk}`='{$sid}'", $eo);
+		$record[$tn][$id] = db_fetch_assoc($res);
+
+		return $record[$tn][$id][$fn];
+	}
+	#########################################################
+	function checkAppRequirements() {
+		global $Translation;
+
+		$reqErrors = [];
+		$minPHP = '5.6.0';
+
+		if(version_compare(PHP_VERSION, $minPHP) == -1)
+			$reqErrors[] = str_replace(
+				['<PHP_VERSION>', '<minPHP>'], 
+				[PHP_VERSION, $minPHP], 
+				$Translation['old php version']
+			);
+
+		if(!function_exists('mysqli_connect'))
+			$reqErrors[] = str_replace('<EXTENSION>', 'mysqli', $Translation['extension not enabled']);
+
+		if(!function_exists('mb_convert_encoding'))
+			$reqErrors[] = str_replace('<EXTENSION>', 'mbstring', $Translation['extension not enabled']);
+
+		// end of checks
+
+		if(!count($reqErrors)) return;
+
+		exit(
+			'<div style="padding: 3em; font-size: 1.5em; color: #A94442; line-height: 150%; font-family: arial; text-rendering: optimizelegibility; text-shadow: 0px 0px 1px;">' .
+				'<ul><li>' .
+				implode('</li><li>', $reqErrors) .
+				'</li><ul>' .
+			'</div>'
+		);
+	}
+	#########################################################
+	function getRecord($table, $id) {
+		// get PK fieldname
+		if(!$pk = getPKFieldName($table)) return false;
+
+		$safeId = makeSafe($id);
+		$eo = ['silentErrors' => true];
+		$res = sql("SELECT * FROM `{$table}` WHERE `{$pk}`='{$safeId}'", $eo);
+		return db_fetch_assoc($res);
+	}
+	#########################################################
+	function guessMySQLDateTime($dt) {
+		// extract date and time, assuming a space separator
+		list($date, $time, $ampm) = preg_split('/\s+/', trim($dt));
+
+		// if date is not already in mysql format, try mysql_datetime
+		if(!(preg_match('/^[0-9]{4}-(0?[1-9]|1[0-2])-([1-2][0-9]|30|31|0?[1-9])$/', $date) && strtotime($date)))
+			if(!$date = mysql_datetime($date)) return false;
+
+		// if time 
+		if($t = time12(trim("$time $ampm")))
+			$time = time24($t);
+		elseif($t = time24($time))
+			$time = $t;
+		else
+			$time = '';
+
+		return trim("$date $time");
+	}
+	#########################################################
+	function lookupQuery($tn, $lookupField) {
+		/* 
+			This is the query accessible from the 'Advanced' window under the 'Lookup field' tab in AppGini.
+			For auto-fill lookups, this is the same as the query of the main lookup field, except the second
+			column is replaced by the caption of the auto-fill lookup field.
+		*/
+		$lookupQuery = [
+			'kids' => [
+			],
+			'transactions' => [
+				'kid' => 'SELECT `kids`.`id`, `kids`.`name` FROM `kids` ORDER BY 2',
+			],
+		];
+
+		return $lookupQuery[$tn][$lookupField];
+	}
+
+	#########################################################
+	function pkGivenLookupText($val, $tn, $lookupField, $falseIfNotFound = false) {
+		static $cache = [];
+		if(isset($cache[$tn][$lookupField][$val])) return $cache[$tn][$lookupField][$val];
+
+		if(!$lookupQuery = lookupQuery($tn, $lookupField)) {
+			$cache[$tn][$lookupField][$val] = false;
+			return false;
+		}
+
+		$m = [];
+
+		// quit if query can't be parsed
+		if(!preg_match('/select\s+(.*?),\s+(.*?)\s+from\s+(.*)/i', $lookupQuery, $m)) {
+			$cache[$tn][$lookupField][$val] = false;
+			return false;
+		}
+
+		list($all, $pkField, $lookupField, $from) = $m;
+		$from = preg_replace('/\s+order\s+by.*$/i', '', $from);
+		if(!$lookupField || !$from) {
+			$cache[$tn][$lookupField][$val] = false;
+			return false;
+		}
+
+		// append WHERE if not already there
+		if(!preg_match('/\s+where\s+/i', $from)) $from .= ' WHERE 1=1 AND';
+
+		$safeVal = makeSafe($val);
+		$id = sqlValue("SELECT {$pkField} FROM {$from} {$lookupField}='{$safeVal}'");
+		if($id !== false) {
+			$cache[$tn][$lookupField][$val] = $id;
+			return $id;
+		}
+
+		// no corresponding PK value found
+		if($falseIfNotFound) {
+			$cache[$tn][$lookupField][$val] = false;
+			return false;
+		} else {
+			$cache[$tn][$lookupField][$val] = $val;
+			return $val;
+		}
+	}
+	#########################################################
+	function userCanImport() {
+		$mi = getMemberInfo();
+		$safeUser = makeSafe($mi['username']);
+		$groupID = intval($mi['groupID']);
+
+		// admins can always import
+		if($mi['group'] == 'Admins') return true;
+
+		// anonymous users can never import
+		if($mi['group'] == config('adminConfig')['anonymousGroup']) return false;
+
+		// specific user can import?
+		if(sqlValue("SELECT COUNT(1) FROM `membership_users` WHERE `memberID`='{$safeUser}' AND `allowCSVImport`='1'")) return true;
+
+		// user's group can import?
+		if(sqlValue("SELECT COUNT(1) FROM `membership_groups` WHERE `groupID`='{$groupID}' AND `allowCSVImport`='1'")) return true;
+
+		return false;
+	}
+	#########################################################
+	function parseTemplate($template) {
+		if(trim($template) == '') return $template;
+
+		global $Translation;
+		foreach($Translation as $symbol => $trans)
+			$template = str_replace("<%%TRANSLATION($symbol)%%>", $trans, $template);
+
+		// Correct <MaxSize> and <FileTypes> to prevent invalid HTML
+		$template = str_replace(['<MaxSize>', '<FileTypes>'], ['{MaxSize}', '{FileTypes}'], $template);
+		$template = str_replace('<%%BASE_UPLOAD_PATH%%>', getUploadDir(''), $template);
+
+		return $template;
+	}
+	#########################################################
+	function getUploadDir($dir) {
+		if($dir == '') $dir = config('adminConfig')['baseUploadPath'];
+
+		return rtrim($dir, '\\/') . '/';
+	}

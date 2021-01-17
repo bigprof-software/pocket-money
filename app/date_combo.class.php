@@ -14,11 +14,11 @@ class DateCombo{
 		$CSSSelectedClass,
 		$CSSCommentClass;
 
-	function __construct(){  // PHP 7 compatibility
+	function __construct() {  // PHP 7 compatibility
 		$this->DateCombo();
 	}
 
-	function DateCombo(){
+	function DateCombo() {
 		// set default values
 		$this->DateFormat = "ymd";
 		$this->DefaultDate = '';
@@ -33,12 +33,12 @@ class DateCombo{
 		$this->CSSCommentClass = '';
 	}
 
-	function GetHTML($readOnly=false){
-		list($xy, $xm, $xd)=explode('-', $this->DefaultDate);
+	function GetHTML($readOnly = false) {
+		list($xy, $xm, $xd) = explode('-', $this->DefaultDate);
 
 		//$y : render years combo
 		$years = new Combo;
-		for($i=$this->MinYear; $i<=$this->MaxYear; $i++){
+		for($i = $this->MinYear; $i <= $this->MaxYear; $i++) {
 			$years->ListItem[] = $i;
 			$years->ListData[] = $i;
 		}
@@ -53,7 +53,7 @@ class DateCombo{
 
 		//$m : render months combo
 		$months = new Combo;
-		for($i=1; $i<=12; $i++){
+		for($i = 1; $i <= 12; $i++) {
 			$months->ListData[] = $i;
 		}
 		$months->ListItem = explode(",", $this->MonthNames);
@@ -68,7 +68,7 @@ class DateCombo{
 
 		//$d : render days combo
 		$days = new Combo;
-		for($i=1; $i<=31; $i++){
+		for($i = 1; $i <= 31; $i++) {
 			$days->ListItem[] = $i;
 			$days->ListData[] = $i;
 		}
@@ -88,8 +88,8 @@ class DateCombo{
 		//$read_only_date = '<p class="form-control-static">' . $read_only_date . '</p>';
 
 		$editable_date = '<table style="width: 100%;" class="form-control-static"><tr>';
-		for($i = 0; $i < 3; $i++){
-			switch($df[$i]){
+		for($i = 0; $i < 3; $i++) {
+			switch($df[$i]) {
 				case 'd':
 					$editable_date .= '<td style="width: 25%;" class="date_combo">' . $d . '</td>';
 					break;
@@ -100,7 +100,15 @@ class DateCombo{
 					$editable_date .= '<td style="width: 25%;" class="date_combo">' . $y . '</td>';
 					break;
 			}
-			if($i == 2) $editable_date .= '<td style="width: 4em;"><button class="btn btn-default btn-block" id="fd-but-' . $this->NamePrefix . '"><i class="glyphicon glyphicon-th"></i></button></td>'; 
+
+			if($i == 2) $editable_date .= 
+				'<td style="width: 6em;">' .
+					'<div class="btn-group pull-right">' .
+						'<button type="button" class="btn btn-default" id="fd-but-' . $this->NamePrefix . '"><i class="glyphicon glyphicon-th"></i></button>' .
+						'<button type="button" class="btn btn-default fd-date-clearer" data-for="' . $this->NamePrefix . '"><i class="glyphicon glyphicon-trash"></i></button>' .
+					'</div>' .
+					'<div class="clearfix"></div>' .
+				'</td>'; 
 		}
 		$editable_date .= '</tr></table>';
 

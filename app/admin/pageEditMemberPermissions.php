@@ -27,6 +27,9 @@
 
 	// request to save changes?
 	if(isset($_POST['saveChanges'])) {
+		// csrf check
+		if(!csrf_token(true)) die($Translation['invalid security token']);
+
 		// validate data
 		foreach ($tables as $t => $tc) {
 			eval(" 
@@ -54,7 +57,7 @@
 
 		// redirect to member permissions page
 		redirect("admin/pageEditMemberPermissions.php?saved=1&memberID=" . $memberID->url);
-	}elseif(isset($_POST['resetPermissions'])) {
+	} elseif(isset($_POST['resetPermissions'])) {
 		sql("delete from membership_userpermissions where lcase(memberID)='{$memberID->sql}'", $eo);
 		// redirect to member permissions page
 		redirect("admin/pageEditMemberPermissions.php?reset=1&memberID=" . $memberID->url);
@@ -100,7 +103,7 @@
 			'class' => 'success',
 			'dismiss_seconds' => 10
 		));
-	}elseif(isset($_GET['reset'])) {
+	} elseif(isset($_GET['reset'])) {
 		echo Notification::show(array(
 			'message' => "<i class=\"glyphicon glyphicon-ok\"></i> {$Translation['member permissions reset']}",
 			'class' => 'success',
@@ -122,6 +125,8 @@
 </div>
 
 <form method="post" action="pageEditMemberPermissions.php">
+	<?php echo csrf_token(); ?>
+
 	<input type="hidden" name="memberID" value="<?php echo $memberID->attr; ?>">
 
 	<div class="text-right" style="margin: 2em 0;">
@@ -132,7 +137,7 @@
 					'class' => 'info',
 					'dismiss_seconds' => 3600
 				));
-			}else{
+			} else {
 				?>
 					<button type="submit" name="resetPermissions" value="1" class="btn btn-warning btn-lg reset-permissions">
 						<i class="glyphicon glyphicon-refresh"></i> 
@@ -206,8 +211,8 @@
 <script>
 	$j(function () {
 		var highlight_selections = function () {
-			$j('input[type=radio]').parent().parent().removeClass('bg-warning text-warning text-bold');
-			$j('input[type=radio]:checked').parent().parent().addClass('bg-warning text-warning text-bold');
+			$j('input[type=radio]').parent().parent().removeClass('bg-warning text-primary text-bold');
+			$j('input[type=radio]:checked').parent().parent().addClass('bg-warning text-primary text-bold');
 		}
 
 		$j('button.reset-permissions').click(function() {

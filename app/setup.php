@@ -1,13 +1,15 @@
 <?php
 	/* initial preps and includes */
 	define('APPGINI_SETUP', true); /* needed in included files to tell that this is the setup script */
-	error_reporting(E_ERROR | E_WARNING | E_PARSE);
-	if(function_exists('set_magic_quotes_runtime')) @set_magic_quotes_runtime(0);
+	error_reporting(E_ERROR /*| E_WARNING*/ | E_PARSE);
 	$curr_dir = dirname(__FILE__);
-	include("$curr_dir/settings-manager.php");
-	include("$curr_dir/defaultLang.php");
-	include("$curr_dir/language.php");
-	include("$curr_dir/db.php");
+	include_once("$curr_dir/settings-manager.php");
+
+	include_once("$curr_dir/defaultLang.php");
+	include_once("$curr_dir/language.php");
+	$Translation = array_merge($TranslationEn, $Translation);
+
+	include_once("$curr_dir/db.php");
 
 	/*
 		Determine execution scenario ...
@@ -26,18 +28,8 @@
 	(isset($_GET['finish'])    ? $finish = true :
 		false))));
 
-
-	/* some function definitions */
-	function undo_magic_quotes($str) {
-		return (get_magic_quotes_gpc() ? stripslashes($str) : $str);
-	}
-
 	function isEmail($email) {
-		if(preg_match('/^([*+!.&#$¦\'\\%\/0-9a-z^_`{}=?~:-]+)@(([0-9a-z-]+\.)+[0-9a-z]{2,45})$/i', $email)) {
-			return $email;
-		}
-
-		return false;
+		return filter_var(trim($email), FILTER_VALIDATE_EMAIL);
 	}
 
 	function setup_allowed_username($username) {
@@ -46,6 +38,19 @@
 		return $username;
 	}
 
+	if(!function_exists('latest_jquery')) {
+		function latest_jquery() {
+			$jquery_dir = dirname(__FILE__) . '/resources/jquery/js';
+
+			$files = scandir($jquery_dir, SCANDIR_SORT_DESCENDING);
+			foreach($files as $entry) {
+				if(preg_match('/^jquery[-0-9\.]*\.min\.js$/i', $entry))
+					return $entry;
+			}
+
+			return '';
+		}
+	}
 
 	/* if config file already exists, no need to continue */
 	if(!$finish && detect_config(false)) {
@@ -79,7 +84,7 @@
 		$db_username = $_POST['db_username'];
 
 		/* validate data */
-		$errors = array();
+		$errors = [];
 		if($submit) {
 			if(!$username) {
 				$errors[] = $Translation['username invalid'];
@@ -103,7 +108,7 @@
 			// attempt to create the database
 			if(!@db_query("CREATE DATABASE IF NOT EXISTS `$db_name`")) {
 				$errors[] = @db_error($connection);
-			}elseif(!@db_select_db($db_name, $connection)) {
+			} elseif(!@db_select_db($db_name, $connection)) {
 				$errors[] = @db_error($connection);
 			}
 		}
@@ -136,19 +141,19 @@
 
 		/* create database tables */
 		$silent = false;
-		include("$curr_dir/updateDB.php");
+		include_once("$curr_dir/updateDB.php");
 
 
 		/* attempt to save db config file */
-		$new_config = array(
-			'dbServer' => undo_magic_quotes($db_server),
-			'dbUsername' => undo_magic_quotes($db_username),
-			'dbPassword' => undo_magic_quotes($db_password),
-			'dbDatabase' => undo_magic_quotes($db_name),
+		$new_config = [
+			'dbServer' => $db_server,
+			'dbUsername' => $db_username,
+			'dbPassword' => $db_password,
+			'dbDatabase' => $db_name,
 			'appURI' => trim(dirname($_SERVER['SCRIPT_NAME']), '/'),
 			'host' => (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'] . ($_SERVER['SERVER_PORT'] == '80' || $_SERVER['SERVER_PORT'] == '443' ? '' : ":{$_SERVER['SERVER_PORT']}")),
 
-			'adminConfig' => array(
+			'adminConfig' => [
 				'adminUsername' => $username,
 				'adminPassword' => password_hash($password, PASSWORD_DEFAULT),
 				'notifyAdminNewMembers' => false,
@@ -176,9 +181,11 @@
 				'smtp_encryption' => '',
 				'smtp_port' => 25,
 				'smtp_user' => '',
-				'smtp_pass' => ''
-			)
-		);
+				'smtp_pass' => '',
+				'googleAPIKey' => '',
+				'baseUploadPath' => 'images',
+			]
+		];
 
 		$save_result = save_config($new_config);
 		if($save_result !== true) {
@@ -213,7 +220,7 @@
 
 				if(jQuery('div[class="text-danger"]').length) {
 					jQuery('body').append('<p class="text-center"><a href="' + a + '" class="btn btn-default vspacer-lg"><?php echo addslashes($Translation['Continue']); ?> <i class="glyphicon glyphicon-chevron-right"></i></a></p>');
-				}else{
+				} else {
 					jQuery('body').append('<div id="manual-redir" style="width: 400px; margin: 10px auto;">If not redirected automatically, <a href="<?php echo basename(__FILE__); ?>?finish=1">click here</a>!</div>');
 					window.location = a;
 				}
@@ -224,7 +231,7 @@
 		// exit
 		include_once("$curr_dir/footer.php");
 		exit;
-	}elseif($finish) {
+	} elseif($finish) {
 		detect_config();
 		@include("$curr_dir/config.php");
 	}
@@ -235,41 +242,43 @@
 		if(!$form && !$finish) { /* show checks and instructions */
 
 			/* initial checks */
-			$checks = array(); /* populate with array('class' => 'warning|danger', 'message' => 'error message') */
+			$checks = []; /* populate with ['class' => 'warning|danger', 'message' => 'error message'] */
 
-			if(!extension_loaded('mysql') && !extension_loaded('mysqli')) {
-				$checks[] = array(
+			if(!extension_loaded('mysql') && !extension_loaded('mysqli'))
+				$checks[] = [
 					'class' => 'danger',
-					'message' => 'ERROR: PHP is not configured to connect to MySQL on this machine. Please see <a href=http://www.php.net/manual/en/ref.mysql.php>this page</a> for help on how to configure MySQL.'
-				);
-			}
+					'message' => 'ERROR: PHP is not configured to connect to MySQL on this machine. Please see <a href=https://www.php.net/manual/en/ref.mysql.php>this page</a> for help on how to configure MySQL.'
+				];
 
-			if(!extension_loaded('iconv')) {
-				$checks[] = array(
-					'class' => 'warning',
-					'message' => 'WARNING: PHP is not configured to use iconv on this machine. Some features of this application might not function correctly. Please see <a href=http://php.net/manual/en/book.iconv.php>this page</a> for help on how to configure iconv.'
-				);
-				?>
-					<div class="alert alert-warning alert-dismissable">
-						<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-						
-					</div>
-				<?php
-			}
+			if(!extension_loaded('iconv'))
+				$checks[] = [
+					'class' => 'danger',
+					'message' => 'PHP is not configured to use iconv on this machine. Some features of this application might not function correctly. Please see <a href=https://php.net/manual/en/book.iconv.php>this page</a> for help on how to configure iconv.'
+				];
 
-			if(!extension_loaded('gd')) {
-				$checks[] = array(
+			if(!extension_loaded('gd'))
+				$checks[] = [
 					'class' => 'warning',
-					'message' => 'WARNING: PHP is not configured to use GD on this machine. This will prevent creating thumbnails of uploaded images. Please see <a href=http://php.net/manual/en/book.image.php>this page</a> for help on how to configure GD.'
-				);
-			}
+					'message' => 'PHP is not configured to use GD on this machine. This will prevent creating thumbnails of uploaded images. Please see <a href=https://php.net/manual/en/book.image.php>this page</a> for help on how to configure GD.'
+				];
 
-			if(!@is_writable("{$curr_dir}/images")) {
-				$checks[] = array(
+			if(!extension_loaded('xml'))
+				$checks[] = [
 					'class' => 'warning',
-					'message' => '<div style="text-direction: ltr; text-align: left;">WARNING: <dfn><abbr title="' . dirname(__FILE__) . '/images">images</abbr></dfn> folder is not writeable. This will prevent file uploads from working correctly. Please set that folder as writeable.<br><br>For example, you might need to <code>chmod 777</code> using FTP, or if this is a linux system and you have shell access, better try using <code>chown -R www-data:www-data ' . dirname(__FILE__) . '</code>, replacing <i>www-data</i> with the actual username running the server process if necessary.</div>'
-				);
-			}
+					'message' => 'PHP is not configured to use XML extension on this machine. This will prevent some app functions. If you\'re using a Windows server, make sure to enable XML extension in <code>php.ini</code>. If you\'re using a Linux server, you should install the appropriate <code>php-xml</code> package for your Linux flavor and PHP version.'
+				];
+
+			if(!extension_loaded('mbstring'))
+				$checks[] = [
+					'class' => 'warning',
+					'message' => 'PHP is not configured to use mbstring extension on this machine. This will prevent some app functions. If you\'re using a Windows server, make sure to enable mbstring extension in <code>php.ini</code>. If you\'re using a Linux server, you should install the appropriate <code>php-mbstring</code> package for your Linux flavor and PHP version.'
+				];
+
+			if(!@is_writable("{$curr_dir}/images"))
+				$checks[] = [
+					'class' => 'warning',
+					'message' => '<dfn><abbr title="' . dirname(__FILE__) . '/images">images</abbr></dfn> folder is not writeable (or doesn\'t exist). This will prevent file uploads from working correctly. Please create or set that folder as writeable.<br><br>For example, you might need to <code>chmod 777</code> using FTP, or if this is a linux system and you have shell access, better try using <code>chown -R www-data:www-data ' . dirname(__FILE__) . '</code>, replacing <i>www-data</i> with the actual username running the server process if necessary.'
+				];
 
 			if(count($checks) && !isset($_POST['test'])) {
 				$stop_setup = false;
@@ -278,7 +287,7 @@
 					<div class="panel-heading"><h3 class="panel-title">Warnings</h3></div>
 					<div class="panel-body">
 						<?php foreach($checks as $chk) { if($chk['class'] == 'danger') { $stop_setup = true; } ?>
-							<div class="text-<?php echo $chk['class']; ?> vspacer-lg">
+							<div class="text-<?php echo $chk['class']; ?> vspacer-lg" style="text-direction: ltr; text-align: left;">
 								<i class="glyphicon glyphicon-<?php echo ($chk['class'] == 'danger' ? 'remove' : 'exclamation-sign'); ?>"></i>
 								<?php echo $chk['message']; ?>
 							</div>
@@ -308,7 +317,7 @@
 			<p class="text-center"><button class="btn btn-success btn-lg" id="show-login-form" type="button"><i class="glyphicon glyphicon-ok"></i> <?php echo $Translation['Lets go']; ?></button></p>
 		</div>
 
-	<?php }elseif($form) { /* show setup form */ ?>
+	<?php } elseif($form) { /* show setup form */ ?>
 
 		<div class="page-header"><h1><?php echo $Translation['Setup Data']; ?></h1></div>
 
@@ -406,7 +415,7 @@
 					<div class="form-group">
 						<label for="password" class="control-label"><?php echo $Translation['password']; ?></label>
 						<div class="input-group">
-							<input type="password" required class="form-control" id="password" name="password" placeholder="<?php echo htmlspecialchars($Translation['password']); ?>">
+							<input type="password" autocomplete="new-password" required class="form-control" id="password" name="password" placeholder="<?php echo htmlspecialchars($Translation['password']); ?>">
 							<span class="input-group-btn">
 								<button data-toggle="collapse" tabindex="-1" data-target="#password-help" class="btn btn-info" type="button"><i class="glyphicon glyphicon-info-sign"></i></button>
 							</span>
@@ -417,7 +426,7 @@
 				<div class="col-sm-6">
 					<div class="form-group">
 						<label for="confirmPassword" class="control-label"><?php echo $Translation['confirm password']; ?></label>
-						<input type="password" required class="form-control" id="confirmPassword" name="confirmPassword" placeholder="<?php echo htmlspecialchars($Translation['confirm password']); ?>">
+						<input type="password" autocomplete="new-password" required class="form-control" id="confirmPassword" name="confirmPassword" placeholder="<?php echo htmlspecialchars($Translation['confirm password']); ?>">
 					</div>
 				</div>
 			</div>
@@ -429,7 +438,7 @@
 			</div>
 		</form>
 
-	<?php }elseif($finish) { ?>
+	<?php } elseif($finish) { ?>
 
 		<?php
 			// make sure this is an admin
@@ -453,7 +462,7 @@
 				<div class="panel-content">
 					<ul id="next-actions" class="nav nav-pills nav-stacked">
 						<li class="acive"><a href="index.php"><i class="glyphicon glyphicon-play"></i> <b><?php echo $Translation['setup next 1']; ?></b></a></li>
-						<li><a href="admin/pageUploadCSV.php"><i class="glyphicon glyphicon-upload"></i> <?php echo $Translation['setup next 2']; ?></a></li>
+						<li><a href="import-csv.php"><i class="glyphicon glyphicon-upload"></i> <?php echo $Translation['setup next 2']; ?></a></li>
 						<li><a href="admin/pageHome.php"><i class="glyphicon glyphicon-cog"></i> <?php echo $Translation['setup next 3']; ?></a></li>
 					</ul>
 				</div>
@@ -475,7 +484,7 @@
 				window.location = a + '?show-form=1';
 			});
 		});
-	<?php }elseif($form) { ?>
+	<?php } elseif($form) { ?>
 		$j(function() {
 			/* password strength feedback */
 			$j('#password').on('keyup', function() {
@@ -484,10 +493,10 @@
 				if(ps == 'strong') {
 					$j('#password').parents('.form-group').removeClass('has-error has-warning').addClass('has-success');
 					$('password').title = '<?php echo htmlspecialchars($Translation['Password strength: strong']); ?>';
-				}else if(ps == 'good') {
+				} else if(ps == 'good') {
 					$j('#password').parents('.form-group').removeClass('has-error has-success').addClass('has-warning');
 					$('password').title = '<?php echo htmlspecialchars($Translation['Password strength: good']); ?>';
-				}else{
+				} else {
 					$j('#password').parents('.form-group').removeClass('has-success has-warning').addClass('has-error');
 					$('password').title = '<?php echo htmlspecialchars($Translation['Password strength: weak']); ?>';
 				}
@@ -497,7 +506,7 @@
 			$j('#confirmPassword').on('keyup', function() {
 				if($j('#confirmPassword').val() != $j('#password').val() || !$j('#confirmPassword').val().length) {
 					$j('#confirmPassword').parents('.form-group').removeClass('has-success').addClass('has-error');
-				}else{
+				} else {
 					$j('#confirmPassword').parents('.form-group').removeClass('has-error').addClass('has-success');
 				}
 			});
@@ -506,7 +515,7 @@
 			$j('#email').on('change', function() {
 				if(validateEmail($j('#email').val())) {
 					$j('#email').parents('.form-group').removeClass('has-error').addClass('has-success');
-				}else{
+				} else {
 					$j('#email').parents('.form-group').removeClass('has-success').addClass('has-error');
 				}
 			});
@@ -563,7 +572,7 @@
 							onSuccess: function(resp) {
 								if(resp.responseText == 'SUCCESS!') {
 									$j('#db_test').removeClass('alert-danger').addClass('alert-success').html('<?php echo addslashes($Translation['Database info is correct']); ?>').fadeIn();
-								}else if(resp.responseText.match(/^ERROR!/)) {
+								} else if(resp.responseText.match(/^ERROR!/)) {
 									$j('#db_test').removeClass('alert-success').addClass('alert-danger').html('<?php echo addslashes($Translation['Database connection error']); ?>').fadeIn();
 									Effect.Shake('db_test');
 								}

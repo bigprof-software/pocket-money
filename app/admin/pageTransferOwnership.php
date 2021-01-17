@@ -20,10 +20,14 @@
 	$destinationGroupID = intval($_GET['destinationGroupID']);
 	$destinationMemberID = makeSafe(strtolower($_GET['destinationMemberID']));
 	$moveMembers = intval($_GET['moveMembers']);
-	$statuses = array();
+	$statuses = [];
 
 	// transfer operations
 	if($sourceGroupID && $sourceMemberID && $destinationGroupID && ($destinationMemberID || $moveMembers) && isset($_GET['beginTransfer'])) {
+
+		// csrf check
+		if(!csrf_token(true)) die(str_replace('pageSettings.php', basename(htmlspecialchars($_SERVER['PHP_SELF'])), $Translation['invalid security token']));
+
 		/* validate everything:
 			1. Make sure sourceMemberID belongs to sourceGroupID
 			2. if moveMembers is false, make sure destinationMemberID belongs to destinationGroupID
@@ -64,7 +68,7 @@
 			$replaceValues = array($sourceMemberID, $newGroup, $dataRecs);
 			$statuses[] = str_replace($originalValues, $replaceValues, $Translation['data records transferred']);
 
-		}elseif(!$moveMembers && $sourceMemberID != -1) {
+		} elseif(!$moveMembers && $sourceMemberID != -1) {
 			$originalValues = array('<SOURCEMEMBER>', '<SOURCEGROUP>', '<DESTINATIONMEMBER>', '<DESTINATIONGROUP>');
 			$replaceValues = array($sourceMemberID, $sourceGroup, $destinationMemberID, $destinationGroup);
 			$statuses[] = str_replace($originalValues, $replaceValues, $Translation['moving data']);
@@ -80,7 +84,7 @@
 			$replaceValues = array($sourceMemberID, $sourceGroup, $srcDataRecsBef, $transferStatus ,$destinationMemberID, $destinationGroup);
 			$statuses[] = str_replace ($originalValues, $replaceValues, $Translation['member records status']);
 
-		}elseif($moveMembers) {
+		} elseif($moveMembers) {
 			$originalValues =  array('<SOURCEGROUP>', '<DESTINATIONGROUP>');
 			$replaceValues = array(  $sourceGroup ,$destinationGroup);
 			$statuses[] = str_replace($originalValues, $replaceValues, $Translation['moving all group members']);
@@ -101,17 +105,17 @@
 			$replaceValues = array($sourceGroup ,$destinationGroup);
 			if($srcGroupMembers) {
 				$statuses[] = str_replace($originalValues, $replaceValues, $Translation['failed transferring group members']);
-			}else{
+			} else {
 				$statuses[] = str_replace($originalValues, $replaceValues, $Translation['group members transferred']);
 
 				if($dataRecsAft) {
 					$statuses[] = $Translation['failed transfer data records'];
-				}else{
+				} else {
 					$statuses[] = str_replace('<DATABEFORE>', $dataRecsBef, $Translation['data records were transferred']);
 				}
 			}
 
-		}else{
+		} else {
 			$originalValues =  array('<SOURCEGROUP>', '<DESTINATIONMEMBER>', '<DESTINATIONGROUP>');
 			$replaceValues = array(  $sourceGroup, $destinationMemberID, $destinationGroup);
 			$statuses[] = str_replace ($originalValues, $replaceValues, $Translation['moving group data to member']);
@@ -156,6 +160,7 @@
 <div class="page-header"><h1><?php echo $Translation['ownership batch transfer']; ?></h1></div>
 
 <form method="get" action="pageTransferOwnership.php" class="form-horizontal">
+	<?php echo csrf_token(); ?>
 
 	<div id="step-1" class="panel panel-default">
 		<div class="panel-heading">
@@ -312,7 +317,7 @@
 			</div>
 		</div>
 
-	<?php }elseif($destinationGroupID) { /* source group not same as destination */ ?>
+	<?php } elseif($destinationGroupID) { /* source group not same as destination */ ?>
 		<div id="step-4" class="panel panel-default">
 			<div class="panel-heading">
 				<h3 class="panel-title">
@@ -322,13 +327,23 @@
 			<div class="panel-body">
 				<div class="step-details">
 					<?php
-						$anon_group_safe = makeSafe($adminConfig['anonymousGroup'], false);
-						$noMove = ($sourceGroupID == sqlValue("select groupID from membership_groups where name='{$anon_group_safe}'"));
-						$destinationHasMembers = sqlValue("select count(1) from membership_users where groupID='{$destinationGroupID}'");
+						$anon_group_safe = makeSafe(config('adminConfig')['anonymousGroup']);
+						$anonGroupId = sqlValue("SELECT groupID FROM membership_groups WHERE name='{$anon_group_safe}'");
 
-						if(!$noMove) {
-							echo $Translation['move records'] ; 
-						}
+						// present option to move member to destination group only if 
+						// source/destination group is not anonymous group and
+						// source member is not super admin and
+						// source member is not 'all members'
+						$noMove = (
+							$sourceGroupID == $anonGroupId ||
+							$destinationGroupID == $anonGroupId ||
+							$sourceMemberID == config('adminConfig')['adminUsername'] ||
+							$sourceMemberID == -1
+						);
+
+						$destinationHasMembers = sqlValue("SELECT COUNT(1) FROM membership_users WHERE groupID='{$destinationGroupID}'");
+
+						if(!$noMove) echo $Translation['move records'];
 					?>
 				</div>
 

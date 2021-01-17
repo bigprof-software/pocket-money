@@ -1,12 +1,13 @@
-<!-- Edit this file to change the layout of the detail view form -->
+<!-- To change the layout of the detail view form, we recommend using JS code in hooks/transactions-dv.js rather than editing this file -->
 
-<a name="detail-view"></a>
+<div id="detail-view"></div>
 <div class="panel-heading"><h3 class="panel-title"><strong><%%DETAIL_VIEW_TITLE%%></strong></h3></div>
 
-<div class="panel-body" id="transactions_dv_container">
+<div id="transactions_dv_container-loading" class="text-center text-info text-bold vspacer-lg"><i class="glyphicon glyphicon-refresh loop-rotate"></i> <%%TRANSLATION(Loading ...)%%></div>
+<div class="panel-body hidden" id="transactions_dv_container">
 	<!-- child links -->
 	<div class="row vspacer-md">
-		<div class="col-xs-12">
+		<div class="col-xs-12 children-links">
 			<div class="clearfix"></div>
 		</div>
 	</div>
@@ -17,51 +18,56 @@
 		<div class="col-md-8 col-lg-10" id="transactions_dv_form">
 			<fieldset class="form-horizontal">
 
-				<div class="form-group">
+				<!-- Field: ID -->
+				<div class="form-group transactions-id">
 					<hr class="hidden-md hidden-lg">
-					<label for="id" class="control-label col-lg-3">ID</label>
+					<label class="control-label col-lg-3" for="id">ID</label>
 					<div class="col-lg-9">
 						<div class="form-control-static" id="id"><%%VALUE(id)%%></div>
 					</div>
 				</div>
 
-				<div class="form-group">
+				<!-- Field: Kid -->
+				<div class="form-group transactions-kid">
 					<hr class="hidden-md hidden-lg">
-					<label for="kid" class="control-label col-lg-3" data-parent_link="view_parent_modal">Kid</label>
+					<label class="control-label col-lg-3" for="kid" data-parent_link="view_parent_modal">Kid</label>
 					<div class="col-lg-9">
 						<div class="form-control-static" style="white-space: nowrap; overflow-x: hidden;"><%%COMBO(kid)%%><%%PLINK(kid)%%><%%ADDNEW(kids)%%></div>
 					</div>
 				</div>
 
-				<div class="form-group">
+				<!-- Field: Date -->
+				<div class="form-group transactions-date">
 					<hr class="hidden-md hidden-lg">
-					<label for="date" class="control-label col-lg-3">Date</label>
+					<label class="control-label col-lg-3" for="date">Date</label>
 					<div class="col-lg-9">
-						<%%COMBO(date)%%>
+						<div class="input-group date datetimepicker"><input type="text" class="form-control" name="date" id="date" value="<%%VALUE(date)%%>"><span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span></span></div>
 					</div>
 				</div>
 
-				<div class="form-group">
+				<!-- Field: Amount -->
+				<div class="form-group transactions-amount">
 					<hr class="hidden-md hidden-lg">
-					<label for="amount" class="control-label col-lg-3">Amount <i class="glyphicon glyphicon-info-sign text-info" data-toggle="collapse" data-target="#amount-description"></i></label>
+					<label class="control-label col-lg-3" for="amount">Amount <i class="glyphicon glyphicon-info-sign text-info" data-toggle="collapse" data-target="#amount-description"></i></label>
 					<div class="col-lg-9">
-						<span class="help-block collapse" id="amount-description"><div class="alert alert-info">Enter a postive value for deposits, or a negative value for withdrawals/spending.</div></span>
-
+						<span class="help-block bspacer-xs collapse" id="amount-description"><div class="alert alert-info bspacer-xs">Enter a postive value for deposits, or a negative value for withdrawals/spending.</div></span>
 						<input maxlength="13" type="text" class="form-control" name="amount" id="amount" value="<%%VALUE(amount)%%>">
 					</div>
 				</div>
 
-				<div class="form-group">
+				<!-- Field: Description -->
+				<div class="form-group transactions-description">
 					<hr class="hidden-md hidden-lg">
-					<label for="description" class="control-label col-lg-3">Description</label>
+					<label class="control-label col-lg-3" for="description">Description</label>
 					<div class="col-lg-9">
-						<input maxlength="" type="text" class="form-control" name="description" id="description" value="<%%VALUE(description)%%>">
+						<input type="text" class="form-control" name="description" id="description" value="<%%VALUE(description)%%>">
 					</div>
 				</div>
 
-				<div class="form-group">
+				<!-- Field: Balance -->
+				<div class="form-group transactions-balance">
 					<hr class="hidden-md hidden-lg">
-					<label for="balance" class="control-label col-lg-3">Balance</label>
+					<label class="control-label col-lg-3">Balance</label>
 					<div class="col-lg-9">
 						<div class="form-control-static" id="balance"><%%VALUE(balance)%%></div>
 					</div>
@@ -107,7 +113,12 @@
 			/* enable DV action buttons to float on scrolling down the form */
 			enable_dvab_floating();
 
-			setTimeout(AppGini.focusFirstFormElement, 100);
+
+			setTimeout(function() {
+				$j('#transactions_dv_container-loading').addClass('hidden');
+				$j('#transactions_dv_container').removeClass('hidden');
+				AppGini.focusFormElement('transactions', 'kid');
+			}, 1100);
 
 			$j('form').eq(0).change(function() {
 				if($j(this).data('already_changed')) return;
@@ -115,7 +126,7 @@
 				$j(this).data('already_changed', true);
 			});
 
-			$j('a[href="<%%TRANSLATION(ImageFolder)%%>"]').click(function() { /* */ return false; });
+			$j('a[href="<%%BASE_UPLOAD_PATH%%>"]').click(function() { return false; });
 
 
 			if(!embedded_mode) {
@@ -156,7 +167,7 @@
 				var pt = $j(this).attr('id').replace(/_view_parent$/, '');
 				if($j(this).prevAll('input:hidden').length) {
 					var parent_id = $j(this).prevAll('input:hidden').eq(0).val();
-				}else{
+				} else {
 					var parent_id = $j(this).prevAll().children('input:hidden').eq(0).val();
 				}
 

@@ -60,12 +60,12 @@
 		}
 
 		// create a recipients array
-		$to = array();
+		$to = [];
 		if($sendToAll) {
 			$res = sql("select email from membership_users", $eo);
-		}elseif($isGroup) {
+		} elseif($isGroup) {
 			$res = sql("select email from membership_users where groupID='{$groupID}'", $eo);
-		}else{
+		} else {
 			$res = sql("select email from membership_users where lcase(memberID)='{$memberID->sql}'", $eo);
 		}
 		while($row = db_fetch_row($res)) {
@@ -141,7 +141,7 @@
 			<p class="form-control-static">
 				<?php echo "{$adminConfig['senderName']} &lt;{$adminConfig['senderEmail']}&gt;"; ?>
 				<div>
-					<a href="pageSettings.php#mail-settings" class="btn btn-default">
+					<a href="pageSettings.php?search-settings=smtp" class="btn btn-default">
 						<i class="glyphicon glyphicon-pencil"></i>
 						<?php echo $Translation['configure mail settings']; ?>
 					</a>

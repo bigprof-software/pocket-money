@@ -7,7 +7,7 @@
 
 	// get a list of tables
 	$arrTables = getTableList();
-	$arrTablesNoOwners = array();
+	$arrTablesNoOwners = [];
 
 	// get a list of tables with records that have no owners
 	foreach($arrTables as $tn => $tc) {
@@ -21,6 +21,9 @@
 
 	// process ownership request
 	if(count($_POST)) {
+		// csrf check
+		if(!csrf_token(true)) die($Translation['invalid security token']);
+
 		ignore_user_abort();
 		foreach($arrTablesNoOwners as $tn => $tc) {
 			$groupID = intval($_POST["ownerGroup_$tn"]);
@@ -52,7 +55,7 @@
 				if ($memberID) {
 					$tempStatus = $Translation["assigned table records to group and member"];
 					$tempStatus = str_replace ( "<MEMBERID>" , $memberID , $tempStatus );
-				}else{
+				} else {
 					$tempStatus = $Translation["assigned table records to group"];   
 				}
 
@@ -145,6 +148,8 @@
 	</script>
 
 <form method="post" action="pageAssignOwners.php">
+	<?php echo csrf_token(); ?>
+
 	<p>
 		<?php echo  $Translation['data ownership'] ; ?>
 	</p>

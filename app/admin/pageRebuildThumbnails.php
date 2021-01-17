@@ -5,16 +5,16 @@
 	include("{$currDir}/incHeader.php");
 
 	// image paths
-	$p=array(   
-		'kids' => array(
-			'photo' => '../images/'
-		)
-	);
+	$p = [
+		'kids' => [
+			'photo' => '../' . getUploadDir(''),
+		],
+	];
 
 	if(!count($p)) exit;
 
 	// validate input
-	$t=$_GET['table'];
+	$t = $_GET['table'];
 	if(!in_array($t, array_keys($p))) {
 		?>
 		<div class="page-header"><h1><?php echo $Translation['rebuild thumbnails']; ?></h1></div>
@@ -43,7 +43,7 @@
 		foreach($p[$t] as $f=>$path) {
 			$res=sql("select `$f` from `$t`", $eo);
 			echo str_replace ( "<FIELD>" , $f , $Translation['building field thumbnails'] )."<br>";
-			$tv = $dv = array();
+			$tv = $dv = [];
 			while($row=db_fetch_row($res)) {
 				if($row[0]!='') {
 					$tv[]=$row[0];

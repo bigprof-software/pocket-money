@@ -1,4 +1,5 @@
-<?php if(function_exists('set_headers')) { set_headers(); } ?><!DOCTYPE html>
+<?php if(function_exists('set_headers')) { set_headers(); } ?>
+<?php if(!isset($Translation)) die('No direct access allowed!'); ?><!DOCTYPE html>
 <?php if(!defined('PREPEND_PATH')) define('PREPEND_PATH', ''); ?>
 <?php if(!defined('datalist_db_encoding')) define('datalist_db_encoding', 'UTF-8'); ?>
 <!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
@@ -20,12 +21,12 @@
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/timepicker/bootstrap-timepicker.min.css" media="screen">
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/datepicker/css/datepicker.css" media="screen">
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/bootstrap-datetimepicker/bootstrap-datetimepicker.css" media="screen">
-		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css.php">
+		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css">
 
 		<!--[if lt IE 9]>
 			<script src="<?php echo PREPEND_PATH; ?>resources/initializr/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
 		<![endif]-->
-		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/jquery-1.12.4.min.js"></script>
+		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/<?php echo latest_jquery(); ?>"></script>
 		<script>var $j = jQuery.noConflict();</script>
 		<script src="<?php echo PREPEND_PATH; ?>resources/moment/moment-with-locales.min.js"></script>
 		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/jquery.mark.min.js"></script>
@@ -36,7 +37,33 @@
 		<script src="<?php echo PREPEND_PATH; ?>resources/timepicker/bootstrap-timepicker.min.js"></script>
 		<script src="<?php echo PREPEND_PATH; ?>resources/datepicker/js/datepicker.packed.js"></script>
 		<script src="<?php echo PREPEND_PATH; ?>resources/bootstrap-datetimepicker/bootstrap-datetimepicker.min.js"></script>
-		<script src="<?php echo PREPEND_PATH; ?>common.js.php"></script>
+		<script src="<?php echo PREPEND_PATH; ?>resources/hotkeys/jquery.hotkeys.min.js"></script>
+		<script src="<?php echo PREPEND_PATH; ?>nicEdit.js"></script>
+
+		<script>
+			<?php
+				// make a UTF8 version of $Translation
+				$translationUTF8 = $Translation;
+				if(datalist_db_encoding != 'UTF-8')
+					$translationUTF8 = array_map(function($str) {
+						return iconv(datalist_db_encoding, 'UTF-8', $str);
+					}, $translationUTF8);
+
+				$imgFolder = rtrim(config('adminConfig')['baseUploadPath'], '\\/') . '/';
+			?>
+			var AppGini = AppGini || {};
+
+			/* translation strings */
+			AppGini.Translate = {
+				_map: <?php echo json_encode($translationUTF8, JSON_PRETTY_PRINT); ?>,
+				_encoding: '<?php echo datalist_db_encoding; ?>'
+			}
+
+			AppGini.imgFolder = <?php echo json_encode($imgFolder, JSON_PARTIAL_OUTPUT_ON_ERROR); ?>;
+		</script>
+
+		<script src="<?php echo PREPEND_PATH; ?>common.js"></script>
+		<script src="<?php echo PREPEND_PATH; ?>shortcuts.js"></script>
 		<?php if(isset($x->TableName) && is_file(dirname(__FILE__) . "/hooks/{$x->TableName}-tv.js")) { ?>
 			<script src="<?php echo PREPEND_PATH; ?>hooks/<?php echo $x->TableName; ?>-tv.js"></script>
 		<?php } ?>
@@ -53,11 +80,14 @@
 
 			<?php if(class_exists('Notification', false)) echo Notification::placeholder(); ?>
 
-			<!-- process notifications -->
-			<?php $notification_margin = ($_REQUEST['Embedded'] ? '15px 0px' : '-15px 0 -45px'); ?>
-			<div style="height: 60px; margin: <?php echo $notification_margin; ?>;">
-				<?php if(function_exists('showNotifications')) echo showNotifications(); ?>
-			</div>
+			<?php 
+				// process notifications
+				if(function_exists('showNotifications')) echo showNotifications();
+			?>
+
+			<?php if($_REQUEST['Embedded']) { ?>
+				<div style="height: 2rem;"></div>
+			<?php } ?>
 
 			<?php if(!defined('APPGINI_SETUP') && is_file(dirname(__FILE__) . '/hooks/header-extras.php')) { include(dirname(__FILE__).'/hooks/header-extras.php'); } ?>
 			<!-- Add header template below here .. -->

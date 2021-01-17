@@ -6,6 +6,9 @@
 
 	// request to save changes?
 	if(isset($_REQUEST['saveChanges'])) {
+		// csrf check
+		if(!csrf_token(true)) die($Translation['invalid security token']);
+
 		// validate data
 		$recID = intval($_REQUEST['recID']);
 		$memberID = makeSafe(strtolower($_REQUEST['memberID']));
@@ -43,7 +46,7 @@
 		// redirect to member editing page
 		redirect("admin/pageEditOwnership.php?recID={$recID}");
 		exit;
-	}elseif(isset($_GET['recID'])) {
+	} elseif(isset($_GET['recID'])) {
 		// we have an edit request for a member
 		$recID = intval($_GET['recID']);
 	}
@@ -66,7 +69,7 @@
 		$dateAdded = @date($adminConfig['PHPDateTimeFormat'], $row['dateAdded']);
 		$dateUpdated = @date($adminConfig['PHPDateTimeFormat'], $row['dateUpdated']);
 		$groupID = $row['groupID'];
-	}else {
+	} else {
 		// no such record exists
 		die("<div class=\"alert alert-danger\">{$Translation['record not found error']}</div>");
 	}
@@ -75,6 +78,8 @@
 <div class="page-header"><h1><?php echo $Translation['edit Record Ownership']; ?></h1></div>
 
 <form method="post" action="pageEditOwnership.php" class="form-horizontal">
+	<?php echo csrf_token(); ?>
+
 	<input type="hidden" name="recID" value="<?php echo html_attr($recID); ?>">
 	<div style="height: 1em;"></div>
 
@@ -193,8 +198,8 @@
 								<?php
 									foreach ($row as $field_name => $field_value) {
 										$field_link = false;
-										if(@is_file("{$currDir}/../{$Translation['ImageFolder']}{$field_value}")) {
-										   $field_value = "<a href=\"../{$Translation['ImageFolder']}{$field_value}\" target=\"_blank\">" . html_attr($field_value) . "</a>";
+										if(@is_file("{$currDir}/../" . getUploadDir('') . $field_value)) {
+										   $field_value = "<a href=\"../" . getUploadDir('') . "{$field_value}\" target=\"_blank\">" . html_attr($field_value) . "</a>";
 										   $field_link = true;
 										}
 										?>
@@ -202,7 +207,7 @@
 										   <td><?php echo $field_name; ?></td>
 										   <?php if($field_link) { ?>
 										       <td><?php echo $field_value; ?></td>
-										   <?php }else{ ?>
+										   <?php } else { ?>
 										       <td><?php echo nl2br(htmlspecialchars($field_value, ENT_NOQUOTES | ENT_COMPAT | ENT_HTML401, datalist_db_encoding)); ?></td>
 										   <?php } ?>
 										</tr>
@@ -212,7 +217,7 @@
 							</tbody>
 						</table>
 						<?php
-					}else{
+					} else {
 						?>
 						<div class="alert alert-danger"><?php echo $Translation['record not found error']; ?></div>
 						<?php

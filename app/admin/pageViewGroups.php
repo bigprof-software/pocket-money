@@ -8,7 +8,7 @@
 		$searchSQL = makeSafe($_GET['searchGroups']);
 		$searchHTML = html_attr($_GET['searchGroups']);
 		$where = "where name like '%{$searchSQL}%' or description like '%{$searchSQL}%'";
-	}else{
+	} else {
 		$searchSQL = '';
 		$searchHTML = '';
 		$where = "";
@@ -19,14 +19,14 @@
 		echo "<div class=\"alert alert-danger\">{$Translation['no matching results found']}</div>";
 		$noResults = true;
 		$page = 1;
-	}else{
+	} else {
 		$noResults = false;
 	}
 
 	$page = intval($_GET['page']);
 	if($page < 1) {
 		$page = 1;
-	}elseif($page > ceil($numGroups / $adminConfig['groupsPerPage']) && !$noResults) {
+	} elseif($page > ceil($numGroups / $adminConfig['groupsPerPage']) && !$noResults) {
 		redirect("admin/pageViewGroups.php?page=" . ceil($numGroups / $adminConfig['groupsPerPage']));
 	}
 
@@ -82,10 +82,10 @@
 						<?php if(!$groupMembersCount) { ?>
 								<a href="pageDeleteGroup.php?groupID=<?php echo $row[0]; ?>" 
 								   title="<?php echo $Translation['delete group'] ; ?>" 
-								   onClick="return confirm('<?php echo $Translation['confirm delete group'] ; ?>');">
+								   onClick="return confirm('<?php echo addslashes($Translation['confirm delete group']); ?>');">
 									<i class="glyphicon glyphicon-trash text-danger"></i>
 								</a>
-						<?php }else{ ?>
+						<?php } else { ?>
 								<i class="glyphicon glyphicon-trash text-muted"></i>
 						<?php } ?>
 						<a href="pageEditMember.php?groupID=<?php echo $row[0]; ?>" title="<?php echo $Translation["add new member"]; ?>"><i class="glyphicon glyphicon-plus text-success"></i></a>
@@ -93,7 +93,7 @@
 						<?php if($groupMembersCount) { ?>
 								<a href="pageViewMembers.php?groupID=<?php echo $row[0]; ?>" title="<?php echo $Translation['view group members'] ; ?>"><i class="glyphicon glyphicon-user"></i></a>
 								<a href="pageMail.php?groupID=<?php echo $row[0]; ?>" title="<?php echo $Translation['send message to group']; ?>"><i class="glyphicon glyphicon-envelope"></i></a>
-						<?php }else{ ?>
+						<?php } else { ?>
 								<i class="glyphicon glyphicon-user text-muted"></i>
 								<i class="glyphicon glyphicon-envelope text-muted"></i>
 						<?php } ?>
