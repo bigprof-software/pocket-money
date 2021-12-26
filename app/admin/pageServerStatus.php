@@ -1,7 +1,6 @@
 <?php
-	$currDir = dirname(__FILE__);
-	require("{$currDir}/incCommon.php");
+	require(__DIR__ . '/incCommon.php');
 
 	$GLOBALS['page_title'] = $Translation['server status'];
-	include("{$currDir}/incHeader.php");
-	include("{$currDir}/incFooter.php");
+	include(__DIR__ . '/incHeader.php');
+	include(__DIR__ . '/incFooter.php');

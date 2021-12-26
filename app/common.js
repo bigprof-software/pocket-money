@@ -1,5 +1,7 @@
 var AppGini = AppGini || {};
 
+AppGini.version = 21.0;
+
 /* initials and fixes */
 jQuery(function() {
 	AppGini.count_ajaxes_blocking_saving = 0;
@@ -565,7 +567,7 @@ function mass_delete(t, ids) {
 						if(!continue_delete) return;
 						jQuery.ajax(t + '_view.php', {
 							type: 'POST',
-							data: { delete_x: 1, SelectedID: ids[itrn] },
+							data: { delete_x: 1, SelectedID: ids[itrn], csrf_token: $j('#csrf_token').val() },
 							success: function(resp) {
 								if(resp != 'OK') {
 									jQuery('<li class="text-danger">' + resp + '</li>').appendTo('.well.details_list ol');
@@ -1475,6 +1477,7 @@ AppGini.calculatedFields = {
 		$j.ajax({
 			url: 'ajax-update-calculated-fields.php',
 			data: { table: table, id: id },
+			type: 'POST',
 			success: function(resp) {
 				if(resp.data == undefined || resp.error == undefined) return;
 
