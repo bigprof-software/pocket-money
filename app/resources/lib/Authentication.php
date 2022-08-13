@@ -138,7 +138,17 @@
 		 */
 		public static function getAdmin() {
 			$mi = self::getUser();
-			if(!$mi || !$mi['admin']) return false;
+			if(!$mi) return false;
+			if($mi['group'] != 'Admins') return false;
+			if(!$mi['admin'] && !MULTIPLE_SUPER_ADMINS) return false;
+
+			return $mi['username'];
+		}
+
+		public static function getSuperAdmin() {
+			$mi = self::getUser();
+			if(!$mi) return false;
+			if(!$mi['admin']) return false;
 
 			return $mi['username'];
 		}
@@ -231,6 +241,10 @@
 			if(!headers_sent()) @header('HTTP/1.0 403 Forbidden');
 			redirect(self::FAILED_LOGIN_URL);
 			exit;
+		}
+
+		public static function isGuest() {
+			return !self::loggedSessionExists();
 		}
 
 		private static function loggedSessionExists() {

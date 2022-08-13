@@ -9,8 +9,8 @@
 	<!-- child links -->
 	<div class="row vspacer-md">
 		<div class="col-xs-12 children-links">
-			<a class="hidden-xs btn btn-default btn-lg pull-right hidden hspacer-sm vspacer-sm" href="transactions_view.php?filterer_kid=<%%URLVALUE(id)%%>&<%%EMBEDDED%%>" id="transactions_link"><i class="glyphicon glyphicon-list-alt"></i> Transactions</a>
-			<a class="visible-xs btn btn-default btn-lg btn-block hidden vspacer-sm" href="transactions_view.php?filterer_kid=<%%URLVALUE(id)%%>&<%%EMBEDDED%%>" id="xs_transactions_link"><i class="glyphicon glyphicon-list-alt"></i> Transactions</a>
+			<a class="hidden-xs btn btn-default btn-lg pull-right hidden hspacer-sm vspacer-sm" href="transactions_view.php?filterer_kid=<%%URLVALUE(id)%%>&<%%EMBEDDED%%>" id="transactions_link"><img src="resources/table_icons/table_money.png"> Transactions</a>
+			<a class="visible-xs btn btn-default btn-lg btn-block hidden vspacer-sm" href="transactions_view.php?filterer_kid=<%%URLVALUE(id)%%>&<%%EMBEDDED%%>" id="xs_transactions_link"><img src="resources/table_icons/table_money.png"> Transactions</a>
 			<input type="hidden" id="transactions_hclink" value="transactions_view.php?filterer_kid=<%%URLVALUE(id)%%>&<%%EMBEDDED%%>">
 			<div class="clearfix"></div>
 		</div>
@@ -148,7 +148,7 @@
 
 				/* append embedded mode to all links */
 				var append_embedded = function() {
-					$j('a[href]:not([href^="#"]):not([href^="javascript"]):not([href$="Embedded=1"]):not([href*="link.php?t="]):not([href^="mailto:"])').each(
+					$j('a[href]:not([href^="#"]):not([href^="javascript"]):not([href$="Embedded=1"]):not([href*="link.php?t="]):not([href^="mailto:"]):not([href$=".jpg"]):not([href$=".png"]):not([href$=".gif"])').each(
 						function() {
 							$j(this).attr('href', $j(this).attr('href') + '&Embedded=1');
 						}
@@ -176,9 +176,6 @@
 			}
 
 			if(true /* !embedded_mode */) {
-				/* add a horizontal spacer to [add new parent] buttons that don't have a spacered element before them */
-				$j('.add_new_parent').prev(':not(.hspacer-md)').next().addClass('hspacer-md');
-
 				$j('.add_new_parent').click(function() {
 					var pt = $j(this).attr('id').replace(/_add_new$/, '');
 					modal_window({

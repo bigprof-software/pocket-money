@@ -1,5 +1,9 @@
 <?php
 	require(__DIR__ . '/incCommon.php');
+
+	// only super admin can access this page!
+	if(!Authentication::getSuperAdmin()) redirect('admin');
+
 	$GLOBALS['page_title'] = $Translation['admin settings'];
 	include(__DIR__ . '/incHeader.php');
 
@@ -76,6 +80,7 @@
 			'dbUsername' => config('dbUsername'),
 			'dbPassword' => config('dbPassword'),
 			'dbDatabase' => config('dbDatabase'),
+			'dbPort' => config('dbPort'),
 			'appURI' => trim(preg_replace('/admin$/', '', dirname($_SERVER['SCRIPT_NAME'])), '/'),
 			'host' => config('host'),
 

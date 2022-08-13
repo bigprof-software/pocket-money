@@ -1,13 +1,9 @@
 <?php if(function_exists('set_headers')) { set_headers(); } ?>
 <?php if(!isset($Translation)) die('No direct access allowed!'); ?><!DOCTYPE html>
 <?php if(!defined('PREPEND_PATH')) define('PREPEND_PATH', ''); ?>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<html class="no-js">
 	<head>
 		<meta charset="<?php echo datalist_db_encoding; ?>">
-		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 		<meta name="description" content="">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -20,11 +16,8 @@
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/timepicker/bootstrap-timepicker.min.css" media="screen">
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/datepicker/css/datepicker.css" media="screen">
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/bootstrap-datetimepicker/bootstrap-datetimepicker.css" media="screen">
-		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css">
+		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css?<?php echo defined('APP_VERSION') ? APP_VERSION : rand(); ?>">
 
-		<!--[if lt IE 9]>
-			<script src="<?php echo PREPEND_PATH; ?>resources/initializr/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
-		<![endif]-->
 		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/<?php echo latest_jquery(); ?>"></script>
 		<script>var $j = jQuery.noConflict();</script>
 		<script src="<?php echo PREPEND_PATH; ?>resources/moment/moment-with-locales.min.js"></script>
@@ -61,8 +54,8 @@
 			AppGini.imgFolder = <?php echo json_encode($imgFolder, JSON_PARTIAL_OUTPUT_ON_ERROR); ?>;
 		</script>
 
-		<script src="<?php echo PREPEND_PATH; ?>common.js"></script>
-		<script src="<?php echo PREPEND_PATH; ?>shortcuts.js"></script>
+		<script src="<?php echo PREPEND_PATH; ?>common.js?<?php echo defined('APP_VERSION') ? APP_VERSION : rand(); ?>"></script>
+		<script src="<?php echo PREPEND_PATH; ?>shortcuts.js?<?php echo defined('APP_VERSION') ? APP_VERSION : rand(); ?>"></script>
 		<?php if(isset($x->TableName) && is_file(__DIR__ . "/hooks/{$x->TableName}-tv.js")) { ?>
 			<script src="<?php echo PREPEND_PATH; ?>hooks/<?php echo $x->TableName; ?>-tv.js"></script>
 		<?php } ?>
@@ -74,7 +67,7 @@
 
 			<?php if(!Request::val('Embedded')) { ?>
 				<?php if(function_exists('htmlUserBar')) echo htmlUserBar(); ?>
-				<div style="height: 70px;" class="hidden-print"></div>
+				<div style="min-height: 70px;" class="hidden-print top-margin-adjuster"></div>
 			<?php } ?>
 
 			<?php if(class_exists('Notification', false)) echo Notification::placeholder(); ?>

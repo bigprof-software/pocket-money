@@ -1,6 +1,6 @@
 var AppGini = AppGini || {};
 
-AppGini.version = 21.0;
+AppGini.version = 22.14;
 
 /* initials and fixes */
 jQuery(function() {
@@ -22,35 +22,18 @@ jQuery(function() {
 		return ( c_width > e_width );
 	};
 
-	var fix_lookup_width = function(field) {
-		var s2 = $j('div.select2-container[id=s2id_' + field + '-container]');
-		if(!s2.length) return;
-
-		var s2new_width = 0, s2view_width = 0, s2parent_width = 0;
-
-		var s2new = s2.parent().find('.add_new_parent:visible');
-		var s2view = s2.parent().find('.view_parent:visible');
-		if(s2new.length) s2new_width = s2new.outerWidth(true);
-		if(s2view.length) s2view_width = s2view.outerWidth(true);
-		s2parent_width = s2.parent().innerWidth();
-
-		s2.css({ width: '100%', 'max-width': (s2parent_width - s2new_width - s2view_width - 1) + 'px' });
-	}
-
 	$j(window).resize(function() {
 		var window_width = $j(window).width();
 		var max_width = $j('body').width() * 0.5;
-
-		$j('.select2-container:not(.option_list)').each(function() {
-			var field = $j(this).attr('id').replace(/^s2id_/, '').replace(/-container$/, '');
-			fix_lookup_width(field);
-		});
 
 		var full_img_factor = 0.9; /* xs */
 		if(window_width >= 992) full_img_factor = 0.6; /* md, lg */
 		else if(window_width >= 768) full_img_factor = 0.9; /* sm */
 
 		$j('.detail_view .img-responsive').css({'max-width' : parseInt($j('.detail_view').width() * full_img_factor) + 'px'});
+
+		/* change height of sizer div below navbar to accomodate navbar height */
+		$j('.top-margin-adjuster').height($j('.navbar-fixed-top:visible').height() ?? 10);
 
 		/* remove labels from truncated buttons, leaving only glyphicons */
 		$j('.btn.truncate:truncated').each(function() {
@@ -66,17 +49,28 @@ jQuery(function() {
 
 	/* don't allow saving detail view when there's an ajax request to a url that matches the following */
 	var ajax_blockers = new RegExp(/(ajax_combo\.php|_autofill\.php|ajax_check_unique\.php)/);
+	var updateBtnHtml = '', insertBtnHtml = '';
 	$j(document).ajaxSend(function(e, r, s) {
 		if(s.url.match(ajax_blockers)) {
 			AppGini.count_ajaxes_blocking_saving++;
 			$j('#update, #insert').prop('disabled', true);
+
+			updateBtnHtml = updateBtnHtml || $j('#update').html();
+			insertBtnHtml = insertBtnHtml || $j('#insert').html();
+			if(updateBtnHtml)
+				$j('#update').html('<i class="glyphicon glyphicon-refresh loop-rotate"></i>');
+			if(insertBtnHtml)
+				$j('#insert').html('<i class="glyphicon glyphicon-refresh loop-rotate"></i>');
 		}
 	});
 	$j(document).ajaxComplete(function(e, r, s) {
 		if(s.url.match(ajax_blockers)) {
 			AppGini.count_ajaxes_blocking_saving = Math.max(AppGini.count_ajaxes_blocking_saving - 1, 0);
-			if(AppGini.count_ajaxes_blocking_saving <= 0)
+			if(AppGini.count_ajaxes_blocking_saving <= 0) {
 				$j('#update:not(.user-locked), #insert').prop('disabled', false);
+				if(updateBtnHtml) $j('#update').html(updateBtnHtml);
+				if(insertBtnHtml) $j('#insert').html(insertBtnHtml);
+			}
 		}
 	});
 
@@ -160,6 +154,24 @@ jQuery(function() {
 	}
 	setInterval(highlightSelectedRows, 100);
 
+	// format .locale-int and .locale-float numbers
+	// to stop it, set AppGini.noLocaleFormatting to true in a hook script in footer-extras.php, .. etc
+	if(!AppGini.noLocaleFormatting) setInterval(() => {
+		$j('.locale-int').each(function() {
+			let i = $j(this).text().trim();
+			if(!/^\d+(\.\d+)?$/.test(i)) return; // already formatted or invalid number
+
+			$j(this).text(parseInt(i).toLocaleString());
+		})
+
+		$j('.locale-float').each(function() {
+			let f = $j(this).text().trim();
+			if(!/^\d+(\.\d+)?$/.test(f)) return; // already formatted or invalid number
+
+			$j(this).text(parseFloat(f).toLocaleString());
+		})
+	}, 100);
+
 	/* update calculated fields */
 	AppGini.calculatedFields.init();
 
@@ -183,6 +195,17 @@ jQuery(function() {
 			.trigger('change');
 	})
 
+	/* confirm when deleting a record, and prevent form validation */
+	$j('button[id=delete]').on('click', (e) => {
+		if(!confirm(AppGini.Translate._map['are you sure?'])) {
+			e.preventDefault();
+			return false;
+		}
+
+		$j('form').attr('novalidate', 'novalidate')
+		return true;
+	})
+
 	/* select email/web links on uncollapsing in DV */
 	$j('.detail_view').on('click', '.btn[data-toggle="collapse"]', function() {
 		var target = $j($j(this).data('target'));
@@ -199,7 +222,7 @@ jQuery(function() {
 		var tvHasWarning = $j('.table_view tfoot .alert-warning').length > 0;
 
 		setInterval(function() {
-			$j('#Print, #CSV, #tv-tools, .table_view thead, .table_view tr.success')
+			$j('#Print, #CSV, .tv-tools, .table_view thead, .table_view tr.success')
 				.toggleClass('hidden', tvHasWarning);
 
 			$j('.tv-toggle').parent().toggleClass('hidden', tvHasWarning);
@@ -218,12 +241,17 @@ jQuery(function() {
 
 	// apply nicedit BGs
 	AppGini.once({
-		condition: function() {
-			return $j('.nicedit-bg').length > 0;
-		},
+		condition: () => $j('.nicedit-bg').length > 0,
 		action: AppGini.applyNiceditBgColors,
 		timeout: 30000 // stop trying after 30 sec
 	});
+
+	// for read-only lookups in DV, prevent flex layout
+	AppGini.once({
+		condition: () => $j('.lookup-flex .match-text').length > 0,
+		action: () => $j('.lookup-flex .match-text').addClass('rspacer-lg').parents('.lookup-flex').removeClass('lookup-flex').addClass('form-control-static'),
+		timeout: 30000
+	})
 });
 
 /* show/hide TV action buttons based on whether records are selected or not */
@@ -329,7 +357,7 @@ function kids_validateData() {
 	if(!AppGini.Validation.fieldRequired('text', 'name', 'Name')) return false;
 
 	// check file uploads (file type and size)
-	if($j('#photo').val() && !AppGini.checkFileUpload('photo', 'jpg|jpeg|gif|png', 2048000)) {
+	if($j('#photo').val() && !AppGini.checkFileUpload('photo', 'jpg|jpeg|gif|png|webp', 2048000)) {
 		AppGini.scrollTo('photo');
 		return false;
 	}
@@ -463,7 +491,9 @@ function loadScript(jsUrl, cssUrl, callback) {
  *    id: id attribute of modal window. auto-generated if not provided
  *    title: optional modal window title
  *    size: 'default', 'full'
- *    close: optional function to execute on closing the modal
+ *    noAnimation: optional, default is false. Set to true to disable animation effect while modal is launched
+ *    show: optional function to execute after showing the modal
+ *    close: optional function to execute after closing the modal
  *    footer: optional array of objects describing the buttons to display in the footer.
  *       Each button object can have the following members:
  *          label: string, label of button
@@ -579,6 +609,13 @@ function mass_delete(t, ids) {
 								jQuery('#record_selector_' + ids[itrn])
 									.prop('checked', false).parent().parent().fadeOut(1500);
 								jQuery('#select_all_records').prop('checked', false);
+
+								// decrement record count
+								let recCount = $j('.record-count').text().replace(/\D/g, ''),
+									lastRec =  $j('.last-record').text().replace(/\D/g, '');
+
+								$j('.record-count').text(parseInt(recCount) - 1);
+								$j('.last-record').text(parseInt(lastRec) - 1);
 							},
 							error: function() {
 								jQuery('<li class="text-warning">' + AppGini.Translate._map['Connection error'] + '</li>')
@@ -1148,7 +1185,7 @@ AppGini.TVScroll = function() {
 									'<iframe ' +
 										'width="100%" height="100%" ' +
 										'style="display: block; overflow: scroll !important; -webkit-overflow-scrolling: touch !important;" ' +
-										'sandbox="allow-modals allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" ' +
+										'sandbox="allow-modals allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads" ' +
 										'src="' + op.url + '">' +
 									'</iframe>'
 									: op.message
@@ -1225,7 +1262,7 @@ AppGini.TVScroll = function() {
 									'<iframe ' +
 										'width="100%" height="100%" ' +
 										'style="display: block; overflow: scroll !important; -webkit-overflow-scrolling: touch !important;" ' +
-										'sandbox="allow-modals allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" ' +
+										'sandbox="allow-modals allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads" ' +
 										'src="' + op.url + '">' +
 									'</iframe>'
 									: op.message
@@ -1278,6 +1315,10 @@ AppGini.TVScroll = function() {
 			var id = op.id, rsz = _resize;
 			rsz(id);
 			$j(window).resize(function() { rsz(id); });
+
+			if(typeof(op.show) == 'function') {
+				op.show();
+			}
 		})
 		//.agModal('show')
 		.on('hidden.bs.modal', function() {
@@ -1754,6 +1795,9 @@ AppGini.lockUpdatesOnUserRequest = function() {
 AppGini.focusFormElement = function(tn, fn) {
 	if(AppGini.mobileDevice()) return;
 
+	// if we have a visible alert, don't scroll to focused element
+	const doScroll = ($j('.alert:visible').length == 0);
+
 	var inputElem = $j([
 		'select[id=' + fn + '-dd]',
 		'select[id=' + fn + ']',
@@ -1767,7 +1811,7 @@ AppGini.focusFormElement = function(tn, fn) {
 
 	if(inputElem.length) {
 		inputElem.focus();
-		AppGini.scrollToDOMElement(inputElem[0], -100);
+		if(doScroll) AppGini.scrollToDOMElement(inputElem[0], -100);
 		return;
 	}
 
@@ -1775,7 +1819,7 @@ AppGini.focusFormElement = function(tn, fn) {
 	var linker = $j('[id=' + fn + '-edit-link]');
 	if(linker.length) {
 		linker.click();
-		AppGini.scrollToDOMElement(linker[0], -100);
+		if(doScroll) AppGini.scrollToDOMElement(linker[0], -100);
 		return;
 	}
 
@@ -1783,7 +1827,7 @@ AppGini.focusFormElement = function(tn, fn) {
 	var s2 = $j('[id=' + fn + '-container], [id=s2id_' + fn + ']');
 	if(s2.length) {
 		s2.select2('focus');
-		AppGini.scrollToDOMElement(s2[0], -100);
+		if(doScroll) AppGini.scrollToDOMElement(s2[0], -100);
 		return;
 	}
 }
@@ -1916,7 +1960,7 @@ AppGini.newRecord = function(callback, params) {
 
 AppGini.updateKeyboardShortcutsStatus = function() {
 	var shortcutsEnabled = JSON.parse(localStorage.getItem('AppGini.shortcutKeysEnabled')) || false;
-	var img = $j('nav .help-shortcuts-launcher');
+	var img = $j('nav .help-shortcuts-launcher img');
 
 	img.length ? img.attr('src', img.attr('src').replace(/\/keyboard.*/, '/keyboard' + (shortcutsEnabled ? '' : '-disabled') + '.png')) : null;
 }
@@ -2002,7 +2046,8 @@ AppGini.handleKeyboardShortcuts = function() {
 	AppGini._handleKeyboardShortcutsApplied = true;
 }
 
-AppGini.showKeyboardShortcuts = function() {
+AppGini.showKeyboardShortcuts = (e) => {
+	if(e) e.preventDefault();
 	if(AppGini.modalOpen()) return;
 
 	var kmap = AppGini.shortcutKeyMap, keys = [], $t = AppGini.Translate._map;
@@ -2044,7 +2089,7 @@ AppGini.showKeyboardShortcuts = function() {
 
 	var title = '<img style="$style" src="$src"> <span class="text-$color">$title</span> $toggler'
 				.replace('$style', 'height: 1.75em; vertical-align: bottom;')
-				.replace('$src', $j('.help-shortcuts-launcher').attr('src'))
+				.replace('$src', $j('.help-shortcuts-launcher img').attr('src'))
 				.replace('$color', shortcutsEnabled ? 'success' : 'danger')
 				.replace('$title', shortcutsEnabled ? $t['keyboard shortcuts enabled'] : $t['keyboard shortcuts disabled'])
 				.replace('$toggler', toggler)
@@ -2129,3 +2174,64 @@ AppGini.applyNiceditBgColors = function() {
 		')' });
 	})
 }
+/**
+ * Adds a link or a divider to the profile menu.
+ * Examples:
+ *    To append a divider to the menu:
+ *       AppGini.addToProfileMenu('--')
+ * 
+ *    To append a text-only link labeled 'Test link' that opens a page 'test'
+ *    in the same tab: 
+ *       AppGini.addToProfileMenu({ href: 'test', text: 'Test link' })
+ * 
+ *    To append a link labeled 'Test link' with an image
+ *    that opens a page 'test' in the same tab: 
+ *       AppGini.addToProfileMenu({
+ *          href: 'test',
+ *          text: 'Test link',
+ *          img: 'path/to/img'
+ *       })
+ * 
+ *    To append a link labeled 'Test link' with a checkmark glyphicon
+ *    that opens a page 'test' in a new tab: 
+ *       AppGini.addToProfileMenu({
+ *          href: 'test',
+ *          text: 'Test link',
+ *          target: '_blank',
+ *          icon: 'ok'
+ *       })
+ */
+AppGini.addToProfileMenu = (link) => {
+	const li = $j('<li></li>')
+
+	if(link === '--')
+		return li.addClass('divider').appendTo('.profile-menu');
+
+	const linkHtml = $j('<a></a>');
+
+	linkHtml
+		.attr('href', link.href ?? '')
+		.addClass(link.class ?? '')
+		.attr('target', link.target ?? '')
+		.text((link.text ?? '').trim())
+
+	if(link.img ?? false)
+		$j('<img>')
+			.attr('src', link.img)
+			.css({
+				maxHeight: '1.5em',
+				maxWidth: '1.5em',
+				marginLeft: '-0.4em',
+			})
+			.addClass('rspacer-sm')
+			.prependTo(linkHtml)
+
+	else if(link.icon ?? false)
+		$j(`<i></i>`)
+			.addClass(`glyphicon glyphicon-${link.icon} rspacer-md`)
+			.prependTo(linkHtml)
+
+	linkHtml.appendTo(li);
+	li.appendTo('.profile-menu')
+}
+

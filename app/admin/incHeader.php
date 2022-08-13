@@ -3,13 +3,9 @@
 	if(!defined('PREPEND_PATH')) define('PREPEND_PATH', '../');
 	$adminConfig = config('adminConfig');
 	?><!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<html class="no-js">
 	<head>
 		<meta charset="<?php echo datalist_db_encoding; ?>">
-		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 		<meta name="description" content="">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title><?php echo APP_TITLE . ' | ' . $Translation['admin area'] . (isset($GLOBALS['page_title']) ? html_attr(" | {$GLOBALS['page_title']}") : ''); ?></title>
@@ -17,11 +13,8 @@
 		<link id="browser_favicon" rel="shortcut icon" href="<?php echo PREPEND_PATH; ?>resources/table_icons/administrator.png">
 
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/initializr/css/bootstrap.css">
-		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css">
+		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css?<?php echo defined('APP_VERSION') ? APP_VERSION : rand(); ?>">
 
-		<!--[if lt IE 9]>
-			<script src="<?php echo PREPEND_PATH; ?>resources/initializr/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
-		<![endif]-->
 		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/<?php echo latest_jquery(); ?>"></script>
 		<script>var $j = jQuery.noConflict(); var AppGini = AppGini || {};</script>
 		<script src="toolTips.js"></script>
@@ -201,13 +194,16 @@
 					<li class="dropdown">
 						<a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="glyphicon glyphicon-cog"></i> <?php echo $Translation['utilities']; ?> <b class="caret"></b></a>
 						<ul class="dropdown-menu">
-							<li><a href="pageSettings.php"><i class="glyphicon menu-item-icon text-info glyphicon-cog"></i> <?php echo $Translation['admin settings']; ?></a></li>
-							<li class="divider"></li>
+							<?php if(Authentication::getSuperAdmin()) { ?>
+								<li><a href="pageSettings.php"><i class="glyphicon menu-item-icon text-info glyphicon-cog"></i> <?php echo $Translation['admin settings']; ?></a></li>
+								<li class="divider"></li>
+							<?php } ?>
 							<li><a href="pageRebuildThumbnails.php"><i class="glyphicon menu-item-icon text-info glyphicon-picture"></i> <?php echo  $Translation['rebuild thumbnails']; ?></a></li>
-							<li><a href="pageTransferOwnership.php"><i class="glyphicon menu-item-icon text-info glyphicon-random"></i> <?php echo $Translation['batch transfer']; ?></a></li>
 							<li><a href="pageMail.php?sendToAll=1"><i class="glyphicon menu-item-icon text-info glyphicon-envelope"></i> <?php echo $Translation['mail all users']; ?></a></li>
 							<li><a href="pageServerStatus.php"><i class="glyphicon menu-item-icon text-info glyphicon-hdd"></i> <?php echo $Translation['server status']; ?></a></li>
 							<li class="divider"></li>
+							<li><a href="pageTranslation.php"><i class="glyphicon menu-item-icon text-info glyphicon-globe"></i> <?php echo $Translation['translation tool']; ?></a></li>
+							<li><a href="pageTransferOwnership.php"><i class="glyphicon menu-item-icon text-info glyphicon-transfer"></i> <?php echo $Translation['batch transfer']; ?></a></li>
 							<li><a href="pageRebuildFields.php"><i class="glyphicon menu-item-icon text-info glyphicon-refresh"></i> <?php echo  $Translation['view or rebuild fields']; ?></a></li>
 							<li><a href="pageBackupRestore.php"><i class="glyphicon menu-item-icon text-info glyphicon-tasks"></i> <?php echo $Translation['database backups']; ?></a></li>
 							<li><a href="pageUploadCSV.php"><i class="glyphicon menu-item-icon text-info glyphicon-upload"></i> <?php echo $Translation['import CSV']; ?></a></li>

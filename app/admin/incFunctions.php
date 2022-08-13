@@ -160,6 +160,7 @@
 		$path = dirname($img);
 
 		// image doesn't exist or inaccessible?
+		// known issue: for webp files, requires PHP 7.1+
 		if(!$size = @getimagesize($img)) return false;
 
 		// calculate thumbnail size to maintain aspect ratio
@@ -200,6 +201,9 @@
 		} elseif($ext == '.png') {
 			if(!$gd['PNG Support'])  return false;
 			$thumbFunc = 'imagepng';
+		} elseif($ext == '.webp') {
+			if(!$gd['WebP Support'] && !$gd['WEBP Support'])  return false;
+			$thumbFunc = 'imagewebp';
 		} elseif($ext == '.jpg' || $ext == '.jpe' || $ext == '.jpeg') {
 			if(!$gd['JPG Support'] && !$gd['JPEG Support'])  return false;
 			$thumbFunc = 'imagejpeg';
@@ -217,14 +221,20 @@
 		}
 
 		// get image data
-		if(!$imgData = imagecreatefromstring(implode('', file($img)))) return false;
+		if(
+			$thumbFunc == 'imagewebp'
+			&& !$imgData = imagecreatefromwebp($img)
+		)
+			return false;
+		elseif(!$imgData = imagecreatefromstring(file_get_contents($img)))
+			return false;
 
 		// finally, create thumbnail
 		$thumbData = imagecreatetruecolor($w, $h);
 
 		//preserve transparency of png and gif images
 		$transIndex = null;
-		if($thumbFunc == 'imagepng') {
+		if($thumbFunc == 'imagepng' || $thumbFunc == 'imagewebp') {
 			if(($clr = @imagecolorallocate($thumbData, 0, 0, 0)) != -1) {
 				@imagecolortransparent($thumbData, $clr);
 				@imagealphablending($thumbData, false);
@@ -316,6 +326,7 @@
 		$dbUsername = config('dbUsername');
 		$dbPassword = config('dbPassword');
 		$dbDatabase = config('dbDatabase');
+		$dbPort = config('dbPort');
 
 		if($connected) return $db_link;
 
@@ -328,7 +339,7 @@
 		}
 
 		/****** Connect to MySQL ******/
-		if(!($db_link = @db_connect($dbServer, $dbUsername, $dbPassword))) {
+		if(!($db_link = @db_connect($dbServer, $dbUsername, $dbPassword, NULL, $dbPort))) {
 			$o['error'] = db_error($db_link, true);
 			if(!empty($o['silentErrors'])) return false;
 
@@ -382,7 +393,7 @@
 					$o['error'] = htmlspecialchars($o['error']) . 
 						"<pre class=\"ltr\">{$Translation['query:']}\n" . htmlspecialchars($statement) . '</pre>' .
 						"<p><i class=\"text-right\">{$Translation['admin-only info']}</i></p>" .
-						"<p>{$Translation['try rebuild fields']}</p>";
+						"<p><a href=\"" . application_url('admin/pageRebuildFields.php') . "\">{$Translation['try rebuild fields']}</a></p>";
 
 				if(!empty($o['silentErrors'])) return false;
 
@@ -779,6 +790,8 @@
 	}
 	########################################################################
 	function setupMembership() {
+		if(empty($_SESSION) || empty($_SESSION['memberID'])) return;
+
 		// run once per session, but force proceeding if not all mem tables created
 		$res = sql("show tables like 'membership_%'", $eo);
 		$num_mem_tables = db_num_rows($res);
@@ -799,6 +812,7 @@
 			'pageRebuildFields.php', 
 			'pageSettings.php',
 			'ajax_check_login.php',
+			'ajax-update-calculated-fields.php',
 		])) return;
 
 		// call each update_membership function
@@ -1078,7 +1092,7 @@
 				`dateUpdated` BIGINT UNSIGNED, 
 				`groupID` INT UNSIGNED, 
 				PRIMARY KEY (`recID`),
-				UNIQUE INDEX `tableName_pkValue` (`tableName`, `pkValue`(150)),
+				UNIQUE INDEX `tableName_pkValue` (`tableName`, `pkValue`(100)),
 				INDEX `pkValue` (`pkValue`),
 				INDEX `tableName` (`tableName`),
 				INDEX `memberID` (`memberID`),
@@ -1086,7 +1100,7 @@
 			) CHARSET " . mysql_charset,
 		$eo);
 
-		sql("ALTER TABLE `{$tn}` ADD UNIQUE INDEX `tableName_pkValue` (`tableName`, `pkValue`(150))", $eo);
+		sql("ALTER TABLE `{$tn}` ADD UNIQUE INDEX `tableName_pkValue` (`tableName`, `pkValue`(100))", $eo);
 		sql("ALTER TABLE `{$tn}` ADD INDEX `pkValue` (`pkValue`)", $eo);
 		sql("ALTER TABLE `{$tn}` ADD INDEX `tableName` (`tableName`)", $eo);
 		sql("ALTER TABLE `{$tn}` ADD INDEX `memberID` (`memberID`)", $eo);
@@ -1145,7 +1159,7 @@
 				`token` VARCHAR(100) NOT NULL,
 				`agent` VARCHAR(100) NOT NULL,
 				`expiry_ts` INT(10) UNSIGNED NOT NULL,
-				UNIQUE INDEX `memberID_token_agent` (`memberID`, `token`, `agent`),
+				UNIQUE INDEX `memberID_token_agent` (`memberID`, `token`(50), `agent`(50)),
 				INDEX `memberID` (`memberID`),
 				INDEX `expiry_ts` (`expiry_ts`)
 			) CHARSET " . mysql_charset,
@@ -1194,7 +1208,7 @@
 				return $dir.$n;
 			}
 		}
-		return 'An error occured while uploading the file. Please try again.';
+		return 'An error occurred while uploading the file. Please try again.';
 	}
 	########################################################################
 	function toBytes($val) {
@@ -1320,7 +1334,10 @@
 			2. when validating a submitted form: if(!csrf_token(true)) { reject_submission_somehow(); }
 	*/
 	function csrf_token($validate = false, $token_only = false) {
-		$token_age = 60 * 60;
+		// a long token age is better for UX with SPA and browser back/forward buttons
+		// and it would expire when the session ends anyway
+		$token_age = 86400 * 2;
+
 		/* retrieve token from session */
 		$csrf_token = (isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : false);
 		$csrf_token_expiry = (isset($_SESSION['csrf_token_expiry']) ? $_SESSION['csrf_token_expiry'] : false);
@@ -1416,7 +1433,7 @@
 			* in the main document, initiate notifications support using this PHP code:
 				echo Notification::placeholder();
 
-			* whenever you want to show a notifcation, use this PHP code:
+			* whenever you want to show a notifcation, use this PHP code inside a script tag:
 				echo Notification::show([
 					'message' => 'Notification text to display',
 					'class' => 'danger', // or other bootstrap state cues, 'default' if not provided
@@ -1642,8 +1659,8 @@
 		$hc = new CI_Input(datalist_db_encoding);
 		$str = $hc->xss_clean(bgStyleToClass($str));
 
-		// sandbox iframes
-		$str = preg_replace('/(<|&lt;)iframe(.*?)(>|&gt;)/i', '$1iframe sandbox $2$3', $str);
+		// sandbox iframes if they aren't already
+		$str = preg_replace('/(<|&lt;)iframe(\s+sandbox)*(.*?)(>|&gt;)/i', '$1iframe sandbox$3$4', $str);
 
 		return $str;
 	}
@@ -1681,13 +1698,19 @@
 	 *  @brief Prepares data for a SET or WHERE clause, to be used in an INSERT/UPDATE query
 	 *  
 	 *  @param [in] $set_array Assoc array of field names => values
-	 *  @param [in] $glue optional glue. Set to ' AND ' or ' OR ' if preparing a WHERE clause
+	 *  @param [in] $glue optional glue. Set to ' AND ' or ' OR ' if preparing a WHERE clause, or to ',' (default) for a SET clause
 	 *  @return SET string
 	 */
 	function prepare_sql_set($set_array, $glue = ', ') {
 		$fnvs = [];
 		foreach($set_array as $fn => $fv) {
-			if($fv === null) { $fnvs[] = "{$fn}=NULL"; continue; }
+			if($fv === null && trim($glue) == ',') { $fnvs[] = "{$fn}=NULL"; continue; }
+			if($fv === null) { $fnvs[] = "{$fn} IS NULL"; continue; }
+
+			if(is_array($fv) && trim($glue) != ',') {
+				$fnvs[] = "{$fn} IN ('" . implode("','", array_map('makeSafe', $fv)) . "')";
+				continue;
+			}
 
 			$sfv = makeSafe($fv);
 			$fnvs[] = "{$fn}='{$sfv}'";
@@ -2058,7 +2081,7 @@
 					        OR
 					        (
 					            `transactions`.`date` = (SELECT `transactions`.`date` FROM `transactions` WHERE `transactions`.`id` = \'%ID%\') AND
-					            `transactions`.`id` <= %ID%
+					            `transactions`.`id` <= \'%ID%\'
 					        )
 					    )
 					    AND

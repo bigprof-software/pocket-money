@@ -3,8 +3,11 @@
 	@define('SESSION_NAME', 'Pocket_money');
 	@define('APP_TITLE', 'Pocket Money');
 	@define('APP_DIR', __DIR__);
+	@define('APP_VERSION', '22.14');
 	@define('maxSortBy', 4);
 	@define('empty_lookup_value', '{empty_value}');
+	@define('MULTIPLE_SUPER_ADMINS', false);
+
 	@define('DATABASE', 'mysqli');
 	@define('mysql_charset', 'utf8');
 
