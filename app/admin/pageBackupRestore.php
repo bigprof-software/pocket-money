@@ -452,6 +452,7 @@
 				@file_put_contents("{$bdir}/.htaccess", 
 					"<FilesMatch \"\\.(sql)\$\">\n" .
 					"   Order allow,deny\n" .
+					"   Deny from all\n" .
 					"</FilesMatch>" 
 				);
 

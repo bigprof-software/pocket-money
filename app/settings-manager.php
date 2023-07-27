@@ -145,8 +145,13 @@
 	}
 
 	function save_config($config_array = []) {
+		$conf_arr_err = ['error' => 'Invalid config array'];
+
+		if(!is_array($config_array)) return $conf_arr_err;
+		if(!is_array($config_array['adminConfig'] ?? [])) return $conf_arr_err;
+
 		if(!count($config_array) || !count($config_array['adminConfig']))
-			return ['error' => 'Invalid config array'];
+			return $conf_arr_err;
 
 		$new_admin_config = '';
 

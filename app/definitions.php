@@ -3,7 +3,7 @@
 	@define('SESSION_NAME', 'Pocket_money');
 	@define('APP_TITLE', 'Pocket Money');
 	@define('APP_DIR', __DIR__);
-	@define('APP_VERSION', '23.11');
+	@define('APP_VERSION', '23.13');
 	@define('maxSortBy', 4);
 	@define('empty_lookup_value', '{empty_value}');
 	@define('MULTIPLE_SUPER_ADMINS', false);

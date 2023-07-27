@@ -243,9 +243,9 @@ img[src="blank.gif"] { max-height: 10px !important; }
 	margin: .5em 0;
 }
 
-/* correct arrow directions in RTL pages */
-.theme-rtl #Previous .glyphicon, .theme-rtl #Next .glyphicon {
-	transform: rotate(180deg);
+/* Add `rtl-mirror` class to an element to horizontally flip it in rtl (e.g. arrow glyphs, ... etc) */
+.theme-rtl .rtl-mirror {
+	transform: scale(-1, 1);
 }
 
 /* theme-specific compact adjustments */
@@ -256,10 +256,11 @@ img[src="blank.gif"] { max-height: 10px !important; }
 /* file upload box formatting */
 .upload-toolbox {
 	overflow-x: hidden;
-	max-width: 40rem;
 	font-size: 1.2rem;
 	text-align: left;
-	background-color: rgba(255, 255, 255, 0.15);
+	margin-bottom: 0;
+	background-color: rgba(255, 255, 255, 0.5);
+	box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.5);
 }
 .theme-rtl .upload-toolbox {
 	text-align: right;

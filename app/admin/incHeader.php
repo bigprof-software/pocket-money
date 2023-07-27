@@ -13,7 +13,7 @@
 		<link id="browser_favicon" rel="shortcut icon" href="<?php echo PREPEND_PATH; ?>resources/table_icons/administrator.png">
 
 		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>resources/initializr/css/bootstrap.css">
-		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css?<?php echo defined('APP_VERSION') ? APP_VERSION : rand(); ?>">
+		<link rel="stylesheet" href="<?php echo PREPEND_PATH; ?>dynamic.css?<?php echo filemtime( __DIR__ . '/../dynamic.css'); ?>">
 
 		<script src="<?php echo PREPEND_PATH; ?>resources/jquery/js/<?php echo latest_jquery(); ?>"></script>
 		<script>var $j = jQuery.noConflict(); var AppGini = AppGini || {};</script>

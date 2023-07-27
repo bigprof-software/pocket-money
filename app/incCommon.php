@@ -99,7 +99,7 @@
 			}
 		}
 
-		return $table_permissions[$tn];
+		return $table_permissions[$tn] ?? [];
 	}
 
 	#########################################################
@@ -879,7 +879,7 @@ EOT;
 	function StyleSheet() {
 		if(!defined('PREPEND_PATH')) define('PREPEND_PATH', '');
 		$prepend_path = PREPEND_PATH;
-		$appVersion = (defined('APP_VERSION') ? APP_VERSION : rand());
+		$mtime = filemtime( __DIR__ . '/dynamic.css');
 
 		$css_links = <<<EOT
 
@@ -887,7 +887,7 @@ EOT;
 			<link rel="stylesheet" href="{$prepend_path}resources/lightbox/css/lightbox.css" media="screen">
 			<link rel="stylesheet" href="{$prepend_path}resources/select2/select2.css" media="screen">
 			<link rel="stylesheet" href="{$prepend_path}resources/timepicker/bootstrap-timepicker.min.css" media="screen">
-			<link rel="stylesheet" href="{$prepend_path}dynamic.css?{$appVersion}">
+			<link rel="stylesheet" href="{$prepend_path}dynamic.css?{$mtime}">
 EOT;
 
 		return $css_links;

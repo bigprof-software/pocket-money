@@ -123,7 +123,7 @@
 
 		foreach($all_tables as $tn => $ti) {
 			$arrPerm = getTablePermissions($tn);
-			if($arrPerm['access']) $accessible_tables[$tn] = $ti;
+			if(!empty($arrPerm['access'])) $accessible_tables[$tn] = $ti;
 		}
 
 		return $accessible_tables;
@@ -140,7 +140,7 @@
 
 		foreach($arrTables as $tn => $tc) {
 			$arrPerm = getTablePermissions($tn);
-			if($arrPerm['access']) $arrAccessTables[$tn] = $tc;
+			if(!empty($arrPerm['access'])) $arrAccessTables[$tn] = $tc;
 		}
 
 		return $arrAccessTables;
@@ -798,12 +798,6 @@
 	function setupMembership() {
 		if(empty($_SESSION) || empty($_SESSION['memberID'])) return;
 
-		// run once per session, but force proceeding if not all mem tables created
-		$res = sql("show tables like 'membership_%'", $eo);
-		$num_mem_tables = db_num_rows($res);
-		$mem_update_fn = membership_table_functions();
-		if(isset($_SESSION['setupMembership']) && $num_mem_tables >= count($mem_update_fn)) return;
-
 		/* abort if current page is one of the following exceptions */
 		if(in_array(basename($_SERVER['PHP_SELF']), [
 			'pageEditMember.php', 
@@ -820,6 +814,12 @@
 			'ajax_check_login.php',
 			'ajax-update-calculated-fields.php',
 		])) return;
+
+		// run once per session, but force proceeding if not all mem tables created
+		$res = sql("show tables like 'membership_%'", $eo);
+		$num_mem_tables = db_num_rows($res);
+		$mem_update_fn = membership_table_functions();
+		if(isset($_SESSION['setupMembership']) && $num_mem_tables >= count($mem_update_fn)) return;
 
 		// call each update_membership function
 		foreach($mem_update_fn as $mem_fn) {

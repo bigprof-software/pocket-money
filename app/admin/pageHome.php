@@ -228,7 +228,7 @@
 		</div> <!-- /div.col-md-8 -->
 
 		<div class="col-md-4" id="twitter-feed">
-			<a class="twitter-timeline" data-height="300" href="https://twitter.com/bigprof?ref_src=twsrc%5Etfw"><?php echo $Translation["BigProf tweets"]; ?></a>
+			<a class="twitter-timeline" data-dnt="true" data-theme="light" data-height="300" href="https://twitter.com/bigprof?ref_src=twsrc%5Etfw"><?php echo $Translation["BigProf tweets"]; ?></a>
 			<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> 
 
 			<div class="text-right hidden" id="remove-feed-link"><a href="pageSettings.php?search-settings=twitter"><i class="glyphicon glyphicon-remove"></i> <?php echo $Translation["remove feed"]; ?></a></div>
