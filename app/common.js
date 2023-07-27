@@ -1,6 +1,6 @@
 var AppGini = AppGini || {};
 
-AppGini.version = 22.14;
+AppGini.version = 23.11;
 
 /* initials and fixes */
 jQuery(function() {

@@ -16,12 +16,10 @@
 			5. to show final success message, Request::val('finish')
 		below here, we determine which scenario is being called
 	*/
-	$submit = $test = $form = $finish = false; 
-	(Request::has('submit')    ? $submit = true :
-	(Request::has('test')      ?   $test = true :
-	(Request::has('show-form') ?   $form = true :
-	(Request::has('finish')    ? $finish = true :
-		false))));
+	$submit = Request::has('submit');
+	$test = Request::has('test');
+	$form = Request::has('show-form');
+	$finish = Request::has('finish');
 
 	/* if config file already exists, no need to continue */
 	if(!$finish && detect_config(false)) {
@@ -29,6 +27,7 @@
 		exit;
 	}
 
+	if(maintenance_mode()) die($Translation['maintenance mode']);
 
 	Authentication::initSession();
 
@@ -125,7 +124,7 @@
 			'dbPassword' => $db_password,
 			'dbDatabase' => $db_name,
 			'dbPort' => $db_port,
-			'appURI' => trim(dirname($_SERVER['SCRIPT_NAME']), '/'),
+			'appURI' => formatUri(dirname($_SERVER['SCRIPT_NAME'])),
 			'host' => (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'] . ($_SERVER['SERVER_PORT'] == '80' || $_SERVER['SERVER_PORT'] == '443' ? '' : ":{$_SERVER['SERVER_PORT']}")),
 
 			'adminConfig' => [

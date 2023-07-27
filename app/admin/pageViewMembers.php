@@ -26,9 +26,9 @@
 		if(!isset($mviewFields[$rSort])) $rSort = $sort;
 
 		// make sure requested sortDir is valid. fallback to default sortDir
-		$rSortDir = $sortDir;
-		if(Request::val('sortDir') && in_array(strtoupper($rSortDir), ['DESC', 'ASC']))
-			$rSortDir = strtoupper(Request::val('sortDir'));
+		$rSortDir = Request::val('sortDir');
+		if(!$rSortDir || !in_array(strtoupper($rSortDir), ['DESC', 'ASC']))
+			$rSortDir = $sortDir;
 
 		$sort = $rSort;
 		$sortDir = $rSortDir;

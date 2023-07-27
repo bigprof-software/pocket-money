@@ -7,6 +7,7 @@
 		getThumbnailSpecs($tableName, $fieldName, $view) -- returns an associative array specifying the width, height and identifier of the thumbnail file.
 		createThumbnail($img, $specs) -- $specs is an array as returned by getThumbnailSpecs(). Returns true on success, false on failure.
 		makeSafe($string)
+		formatUri($uri) -- convert \ to / and strip slashes from uri start/end
 		checkPermissionVal($pvn)
 		sql($statement, $o)
 		sqlValue($statement)
@@ -268,6 +269,11 @@
 		unset($thumbData);
 
 		return true;
+	}
+	########################################################################
+	function formatUri($uri) {
+		$uri = str_replace('\\', '/', $uri);
+		return trim($uri, '/');
 	}
 	########################################################################
 	function makeSafe($string, $is_gpc = true) {
@@ -2127,18 +2133,6 @@
 		}
 
 		return $caluclations_made;
-	}
-	#########################################################
-	function latest_jquery() {
-		$jquery_dir = __DIR__ . '/../resources/jquery/js';
-
-		$files = scandir($jquery_dir, SCANDIR_SORT_DESCENDING);
-		foreach($files as $entry) {
-			if(preg_match('/^jquery[-0-9\.]*\.min\.js$/i', $entry))
-				return $entry;
-		}
-
-		return '';
 	}
 	#########################################################
 	function existing_value($tn, $fn, $id, $cache = true) {

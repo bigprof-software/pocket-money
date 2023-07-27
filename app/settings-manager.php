@@ -259,9 +259,22 @@
 			'dbPassword' => $dbPassword,
 			'dbDatabase' => $dbDatabase,
 			'dbPort' => $dbPort,
-			'appURI' => trim(dirname($_SERVER['SCRIPT_NAME']), '/'),
+			'appURI' => formatUri(dirname($_SERVER['SCRIPT_NAME'])),
 			'host' => (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : $_SERVER['SERVER_NAME'] . ($_SERVER['SERVER_PORT'] == '80' || $_SERVER['SERVER_PORT'] == '443' ? '' : ":{$_SERVER['SERVER_PORT']}")),
 			'adminConfig' => $adminConfig
 		]);
+	}
+
+	#########################################################
+	function latest_jquery() {
+		$jquery_dir = __DIR__ . '/resources/jquery/js';
+
+		$files = scandir($jquery_dir, SCANDIR_SORT_DESCENDING);
+		foreach($files as $entry) {
+			if(preg_match('/^jquery[-0-9\.]*\.min\.js$/i', $entry))
+				return $entry;
+		}
+
+		return '';
 	}
 
