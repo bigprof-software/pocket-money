@@ -136,6 +136,7 @@ img[src="blank.gif"] { max-height: 10px !important; }
 /* tv tools button widths */
 .tv-tools .btn { width: 5em; }
 
+#spm_notification { direction: ltr !important; }
 /* compact theme styles */
 .container.theme-compact, .container-fluid.theme-compact { line-height: 1.6; font-size: 0.857em; }
 
@@ -331,7 +332,7 @@ th:focus {
 /* fix nicedit components' dimensions */
 .has-nicedit > div { width: 100% !important; }
 .has-nicedit .nicEdit-main { width: 99% !important; }
-.nicEdit-main { min-height: 6em; /* overflow: auto !important; */ }
+.nicEdit-main { min-height: 6em !important; /* overflow: auto !important; */ }
 
 /* hide empty email links */
 a[href="mailto:"] { display: none; }
@@ -387,3 +388,44 @@ a[href="mailto:"] { display: none; }
 .theme-sandstone .profile-menu-icon > .icon { padding: 6px !important; }
 .theme-compact.theme-sandstone .profile-menu-icon > .icon { padding: 6px !important; }
 .profile-menu-text { margin: 0 .25em; display: none; }
+
+/* fix multi-choice layout in rtl */
+.theme-rtl .select2-search-choice { direction: ltr; }
+.theme-rtl .select2-container-multi .select2-choices li {
+	float: right;
+	margin-right: 5px;
+	margin-left: 0;
+}
+
+/* child record info in tv */
+.child-records-info > a {
+	display: inline-block;
+}
+.child-records-info > a.children-count {
+	text-align: right;
+	width: calc(100% - 3em);
+}
+dd.child-records-info > a.children-count {
+	max-width: 6em;
+}
+.child-records-info > a.new-child {
+	text-align: center;
+	width: 2.5em;
+}
+.update-children-count {
+	height: .8em;
+}
+
+/* prevent right-aligned fields in non-default TV layouts from being too wide */
+.container:not(.theme-rtl) .dl-horizontal dd.text-right,
+.container:not(.theme-rtl) .dl-horizontal dd > div.text-right {
+	max-width: 8em;
+}
+.theme-rtl .dl-horizontal dd.text-left,
+.theme-rtl .dl-horizontal dd > div.text-left {
+	max-width: 8em;
+}
+.theme-rtl .child-records-info {
+	direction: ltr;
+	text-align: right;
+}

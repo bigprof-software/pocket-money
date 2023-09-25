@@ -63,7 +63,7 @@
 <script>
 	$j('#toggle_maintenance_mode button').click(function() {
 		if($j(this).hasClass('locked_active') || $j(this).hasClass('unlocked_inactive')) {
-			if(confirm('<?php echo html_attr($Translation['enable maintenance mode?']); ?>')) {
+			if(confirm(<?php echo json_encode($Translation['enable maintenance mode?']); ?>)) {
 				$j.ajax({
 					url: 'ajax-maintenance-mode.php', 
 					data: {
@@ -76,7 +76,7 @@
 				});
 			}
 		} else {
-			if(confirm('<?php echo html_attr($Translation['disable maintenance mode?']); ?>')) {
+			if(confirm(<?php echo json_encode($Translation['disable maintenance mode?']); ?>)) {
 				$j.ajax({
 					url: 'ajax-maintenance-mode.php', 
 					data: {

@@ -506,7 +506,7 @@
 	* Loads a given view from the templates folder, passing the given data to it
 	* @param $view the name of a php file (without extension) to be loaded from the 'templates' folder
 	* @param $the_data_to_pass_to_the_view (optional) associative array containing the data to pass to the view
-	* @return the output of the parsed view as a string
+	* @return string the output of the parsed view
 	*/
 	function loadView($view, $the_data_to_pass_to_the_view = false) {
 		global $Translation;
@@ -627,6 +627,9 @@
 				echo '<div class="text-center">';
 				if($back_url) {
 					echo '<a href="' . $back_url . '" class="btn btn-danger btn-lg vspacer-lg"><i class="glyphicon glyphicon-chevron-left"></i> ' . $Translation['< back'] . '</a>';
+				// in embedded mode, close modal window
+				} elseif(Request::val('Embedded')) {
+					echo '<button class="btn btn-danger btn-lg" type="button" onclick="AppGini.closeParentModal();"><i class="glyphicon glyphicon-chevron-left"></i> ' . $Translation['< back'] . '</button>';
 				} else {
 					echo '<a href="#" class="btn btn-danger btn-lg vspacer-lg" onclick="history.go(-1); return false;"><i class="glyphicon glyphicon-chevron-left"></i> ' . $Translation['< back'] . '</a>';
 				}
@@ -993,3 +996,74 @@ EOT;
 
 	#########################################################
 
+	function getLookupFields($skipPermissions = false, $filterByPermission = 'view') {
+		$pcConfig = [
+			'kids' => [
+			],
+			'transactions' => [
+				'kid' => [
+					'parent-table' => 'kids',
+					'parent-primary-key' => 'id',
+					'child-primary-key' => 'id',
+					'child-primary-key-index' => 0,
+					'tab-label' => 'Transactions <span class="hidden child-label-transactions child-field-caption">(Kid)</span>',
+					'auto-close' => false,
+					'table-icon' => 'resources/table_icons/table_money.png',
+					'display-refresh' => true,
+					'display-add-new' => true,
+					'forced-where' => '',
+					'display-fields' => [1 => 'Kid', 2 => 'Date', 3 => 'Amount', 4 => 'Description', 5 => 'Balance'],
+					'display-field-names' => [1 => 'kid', 2 => 'date', 3 => 'amount', 4 => 'description', 5 => 'balance'],
+					'sortable-fields' => [0 => '`transactions`.`id`', 1 => '`kids1`.`name`', 2 => '`transactions`.`date`', 3 => '`transactions`.`amount`', 4 => 5, 5 => '`transactions`.`balance`'],
+					'records-per-page' => 10,
+					'default-sort-by' => 2,
+					'default-sort-direction' => 'desc',
+					'open-detail-view-on-click' => true,
+					'display-page-selector' => true,
+					'show-page-progress' => true,
+					'template' => 'children-transactions',
+					'template-printable' => 'children-transactions-printable',
+					'query' => "SELECT `transactions`.`id` as 'id', IF(    CHAR_LENGTH(`kids1`.`name`), CONCAT_WS('',   `kids1`.`name`), '') as 'kid', if(`transactions`.`date`,date_format(`transactions`.`date`,'%d/%m/%Y %h:%i %p'),'') as 'date', `transactions`.`amount` as 'amount', `transactions`.`description` as 'description', `transactions`.`balance` as 'balance' FROM `transactions` LEFT JOIN `kids` as kids1 ON `kids1`.`id`=`transactions`.`kid` "
+				],
+			],
+		];
+
+		if($skipPermissions) return $pcConfig;
+
+		if(!in_array($filterByPermission, ['access', 'insert', 'edit', 'delete'])) $filterByPermission = 'view';
+
+		/**
+		* dynamic configuration based on current user's permissions
+		* $userPCConfig array is populated only with parent tables where the user has access to
+		* at least one child table
+		*/
+		$userPCConfig = [];
+		foreach($pcConfig as $tn => $lookupFields) {
+			$perm = getTablePermissions($tn);
+			if(!$perm[$filterByPermission]) continue;
+
+			foreach($lookupFields as $fn => $ChildConfig) {
+				$permParent = getTablePermissions($ChildConfig['parent-table']);
+				if(!$permParent[$filterByPermission]) continue;
+
+				$userPCConfig[$tn][$fn] = $pcConfig[$tn][$fn];
+				// show add new only if configured above AND the user has insert permission
+				$userPCConfig[$tn][$fn]['display-add-new'] = ($perm['insert'] && $pcConfig[$tn][$fn]['display-add-new']);
+			}
+		}
+
+		return $userPCConfig;
+	}
+
+	#########################################################
+
+	function getChildTables($parentTable, $skipPermissions = false, $filterByPermission = 'view') {
+		$pcConfig = getLookupFields($skipPermissions, $filterByPermission);
+		$childTables = [];
+		foreach($pcConfig as $tn => $lookupFields)
+			foreach($lookupFields as $fn => $ChildConfig)
+				if($ChildConfig['parent-table'] == $parentTable)
+					$childTables[$tn][$fn] = $ChildConfig;
+
+		return $childTables;
+	}

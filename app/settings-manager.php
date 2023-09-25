@@ -26,6 +26,8 @@
 
 	// autoloading classes
 	spl_autoload_register(function($class) {
+		// convert namespace separators to directory separators
+		$class = str_replace('\\', '/', $class);
 		@include_once(APP_DIR . "/resources/lib/{$class}.php");
 	});
 

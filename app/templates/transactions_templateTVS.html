@@ -1,12 +1,12 @@
 <!-- Edit this file to change the layout of each record in the table view -->
-<!-- To disable clicking of a field, remove the  and  formatters around it-->
+<!-- To disable clicking of a field, remove the <%%SELECT%%> and <%%ENDSELECT%%> formatters around it-->
 
 <!-- If you wish to hide the table view header that contains the column titles, -->
 <!-- add the following to the transactions_init() hook (in hooks/transactions.php file) -->
 <!--     $options->ShowTableHeader = 0;     -->
 
-		<td id="transactions-kid-<%%VALUE(id)%%>" class="transactions-kid"><%%VALUE(kid)%%></td>
-		<td id="transactions-date-<%%VALUE(id)%%>" class="transactions-date"><%%VALUE(date)%%></td>
-		<td id="transactions-amount-<%%VALUE(id)%%>" class="transactions-amount text-right"><%%VALUE(amount)%%></td>
-		<td id="transactions-description-<%%VALUE(id)%%>" class="transactions-description"><%%VALUE(description)%%></td>
-		<td id="transactions-balance-<%%VALUE(id)%%>" class="transactions-balance text-right"><%%VALUE(balance)%%></td>
+		<td id="transactions-kid-<%%VALUE(id)%%>" class="transactions-kid text-bold"><%%VALUE(kid)%%></td>
+		<td id="transactions-date-<%%VALUE(id)%%>" class="transactions-date text-bold"><%%VALUE(date)%%></td>
+		<td id="transactions-amount-<%%VALUE(id)%%>" class="transactions-amount text-right text-bold"><%%VALUE(amount)%%></td>
+		<td id="transactions-description-<%%VALUE(id)%%>" class="transactions-description text-bold"><%%VALUE(description)%%></td>
+		<td id="transactions-balance-<%%VALUE(id)%%>" class="transactions-balance text-right text-bold"><%%VALUE(balance)%%></td>

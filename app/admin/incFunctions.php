@@ -579,7 +579,7 @@
 		$payload = $data;
 		$payload['insert_x'] = 1;
 
-		$url = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . config('host') . '/' . application_uri("{$table}_view.php");
+		$url = application_url("{$table}_view.php");
 		$token = jwt_token();
 		$options = [
 			CURLOPT_URL => $url,
@@ -812,8 +812,12 @@
 			'pageRebuildFields.php', 
 			'pageSettings.php',
 			'ajax_check_login.php',
-			'ajax-update-calculated-fields.php',
+			'parent-children.php',
 		])) return;
+
+		// abort if current page is ajax
+		if(is_ajax()) return;
+		if(strpos(basename($_SERVER['PHP_SELF']), 'ajax-') === 0) return;
 
 		// run once per session, but force proceeding if not all mem tables created
 		$res = sql("show tables like 'membership_%'", $eo);
@@ -1290,8 +1294,15 @@
 	########################################################################
 	function application_url($page = '', $s = false) {
 		if($s === false) $s = $_SERVER;
-		$ssl = (!empty($s['HTTPS']) && strtolower($s['HTTPS']) != 'off');
+
+		$ssl = (
+			(!empty($s['HTTPS']) && strtolower($s['HTTPS']) != 'off')
+			// detect reverse proxy SSL
+			|| (!empty($s['HTTP_X_FORWARDED_PROTO']) && strtolower($s['HTTP_X_FORWARDED_PROTO']) == 'https')
+			|| (!empty($s['HTTP_X_FORWARDED_SSL']) && strtolower($s['HTTP_X_FORWARDED_SSL']) == 'on')
+		);
 		$http = ($ssl ? 'https:' : 'http:');
+
 		$port = $s['SERVER_PORT'];
 		$port = ($port == '80' || $port == '443' || !$port) ? '' : ':' . $port;
 		// HTTP_HOST already includes server port if not standard, but SERVER_NAME doesn't
@@ -1608,12 +1619,7 @@
 		$cfg = config('adminConfig');
 		$smtp = ($cfg['mail_function'] == 'smtp');
 
-		if(!class_exists('PHPMailer', false)) {
-			include_once(__DIR__ . '/../resources/PHPMailer/class.phpmailer.php');
-			if($smtp) include_once(__DIR__ . '/../resources/PHPMailer/class.smtp.php');
-		}
-
-		$pm = new PHPMailer;
+		$pm = new PHPMailer\PHPMailer\PHPMailer;
 		$pm->CharSet = datalist_db_encoding;
 
 		if($smtp) {
@@ -2410,4 +2416,53 @@
 	function denyAccess($msg = null) {
 		@header($_SERVER['SERVER_PROTOCOL'] . ' 403 Access Denied');
 		die($msg);
+	}
+	#########################################################
+	function is_xhr() {
+		return (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+	}
+
+	/**
+	 * @brief send a json response to the client and terminate
+	 * 
+	 * @param [in] $dataOrMsg mixed, either an array of data to send, or a string error message
+	 * @param [in] $isError bool, true if $dataOrMsg is an error message, false if it's data
+	 * @param [in] $errorStatusCode int, HTTP status code to send
+	 * 
+	 * @details if $isError is true, $dataOrMsg is assumed to be an error message and $errorStatusCode is sent as the HTTP status code
+	 *     example error response: `{"status":"error","message":"Access denied"}`
+	 *     if $isError is false, $dataOrMsg is assumed to be data and $errorStatusCode is ignored
+	 *     example success response: `{"status":"success","data":{"id":1,"name":"John Doe"}}`
+	 */
+	function json_response($dataOrMsg, $isError = false, $errorStatusCode = 400) {
+		@header('Content-type: application/json');
+
+		if($isError) {
+			@header($_SERVER['SERVER_PROTOCOL'] . ' ' . $errorStatusCode . ' Internal Server Error');
+			@header('Status: ' . $errorStatusCode . ' Bad Request');
+
+			die(json_encode([
+				'status' => 'error',
+				'message' => $dataOrMsg,
+			]));
+		}
+
+		die(json_encode([
+			'status' => 'success',
+			'data' => $dataOrMsg,
+		]));
+	}
+
+	/**
+	 * @brief Check if a string is alphanumeric.
+	 *        We're defining it here in case it's not defined by some PHP installations.
+	 *        It's reuired by PHPMailer.
+	 *  
+	 * @param [in] $str string to check
+	 * @return bool, true if $str is alphanumeric, false otherwise
+	 */
+	if(!function_exists('ctype_alnum')) {
+		function ctype_alnum($str) {
+			return preg_match('/^[a-zA-Z0-9]+$/', $str);
+		}
 	}

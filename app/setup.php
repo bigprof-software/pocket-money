@@ -31,6 +31,12 @@
 
 	Authentication::initSession();
 
+	// check if captcha supported and verified
+	if(FORCE_SETUP_CAPTCHA && Captcha::available() && !Captcha::verified()) {
+		http_response_code(401); // Unauthorized to allow blocking of brute force attacks in WAFs
+		die(Captcha::standAloneForm('setup.php'));
+	}
+
 	/* include page header, unless we're testing db connection (ajax) */
 	$_REQUEST['Embedded'] = 1; /* to prevent displaying the navigation bar */
 	$x = new StdClass;

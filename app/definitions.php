@@ -3,7 +3,7 @@
 	@define('SESSION_NAME', 'Pocket_money');
 	@define('APP_TITLE', 'Pocket Money');
 	@define('APP_DIR', __DIR__);
-	@define('APP_VERSION', '23.13');
+	@define('APP_VERSION', '23.16');
 	@define('maxSortBy', 4);
 	@define('empty_lookup_value', '{empty_value}');
 	@define('MULTIPLE_SUPER_ADMINS', false);
@@ -41,3 +41,4 @@
 	$GLOBALS['filter_operators'] = FILTER_OPERATORS;
 
 	@define('MULTI_TENANTS', false);
+	@define('FORCE_SETUP_CAPTCHA', true);
