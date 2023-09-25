@@ -77,7 +77,7 @@
 	$x->AllowMassDelete = true;
 	$x->AllowInsert = $perm['insert'];
 	$x->AllowUpdate = $perm['edit'];
-	$x->SeparateDV = 0;
+	$x->SeparateDV = 1;
 	$x->AllowDeleteOfParents = 0;
 	$x->AllowFilters = 1;
 	$x->AllowSavingFilters = (getLoggedAdmin() !== false);
@@ -90,7 +90,6 @@
 	$x->QuickSearch = 1;
 	$x->QuickSearchText = $Translation['quick search'];
 	$x->ScriptFileName = 'transactions_view.php';
-	$x->RedirectAfterInsert = 'transactions_view.php?SelectedID=#ID#';
 	$x->TableTitle = 'Transactions';
 	$x->TableIcon = 'resources/table_icons/table_money.png';
 	$x->PrimaryKey = '`transactions`.`id`';

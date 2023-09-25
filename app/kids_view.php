@@ -83,7 +83,6 @@
 	$x->QuickSearch = 1;
 	$x->QuickSearchText = $Translation['quick search'];
 	$x->ScriptFileName = 'kids_view.php';
-	$x->RedirectAfterInsert = 'kids_view.php?SelectedID=#ID#';
 	$x->TableTitle = 'Kids';
 	$x->TableIcon = 'resources/table_icons/kids.png';
 	$x->PrimaryKey = '`kids`.`id`';
