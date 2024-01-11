@@ -1,6 +1,6 @@
 var AppGini = AppGini || {};
 
-AppGini.version = 23.16;
+AppGini.version = 24.10;
 
 /* initials and fixes */
 jQuery(function() {
@@ -168,7 +168,10 @@ jQuery(function() {
 			let f = $j(this).text().trim();
 			if(!/^\d+(\.\d+)?$/.test(f)) return; // already formatted or invalid number
 
-			$j(this).text(parseFloat(f).toLocaleString());
+			// preserve decimals
+			const countDecimals = (f.split('.')[1] || '').length;
+
+			$j(this).text(parseFloat(f).toLocaleString(undefined, {minimumFractionDigits: countDecimals, maximumFractionDigits: countDecimals}));
 		})
 	}, 100);
 
@@ -302,6 +305,14 @@ jQuery(function() {
 	$j(document).on('click', '.update-children-count', function() {
 		AppGini.updateChildrenCount(false); // update only once -- no rescheduling
 	})
+
+	AppGini.once({
+		condition: () => AppGini.Translate !== undefined,
+		action: () => moment.locale(AppGini.Translate._map['datetimepicker locale'])
+	})
+
+	// if upload toolbox is empty, hide it
+	$j('.upload-toolbox').toggleClass('hidden', !$j('.upload-toolbox').children().not('.hidden').length)
 });
 
 /* show/hide TV action buttons based on whether records are selected or not */

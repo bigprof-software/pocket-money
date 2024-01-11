@@ -296,6 +296,9 @@ class DataList {
 					$url .= '&SelectedID=' . urlencode($SelectedID);
 			}
 
+			// append browser window id to url
+			$url .= (strpos($url, '?') === false ? '?' : '&') .  WindowMessages::windowIdQuery();
+
 			@header('Location: ' . $url);
 			$this->HTML .= "<META HTTP-EQUIV=\"Refresh\" CONTENT=\"0;url=" . $url ."\">";
 
@@ -357,6 +360,10 @@ class DataList {
 			$filtersGET = substr($filtersGET, 1); // remove initial &
 
 			$redirectUrl = $this->ScriptFileName . '?SelectedID=' . urlencode($SelectedID) . '&' . $filtersGET . '&' . $update_status;
+
+			// append browser window id to url
+			$redirectUrl .= (strpos($redirectUrl, '?') === false ? '?' : '&') .  WindowMessages::windowIdQuery();
+
 			@header("Location: $redirectUrl");
 			$this->HTML .= '<META HTTP-EQUIV="Refresh" CONTENT="0;url='.$redirectUrl.'">';
 			return;
@@ -709,7 +716,7 @@ class DataList {
 			if($current_view == 'DV' && !$Embedded) {
 				$this->HTML .= '<div class="page-header">';
 					$this->HTML .= '<h1>';
-						$this->HTML .= '<a style="text-decoration: none; color: inherit;" href="' . $this->TableName . '_view.php"><img src="' . $this->TableIcon . '"> ' . $this->TableTitle . '</a>';
+						$this->HTML .= '<a style="text-decoration: none; color: inherit;" href="' . $this->TableName . '_view.php?' . WindowMessages::windowIdQuery() . '"><img src="' . $this->TableIcon . '"> ' . $this->TableTitle . '</a>';
 						/* show add new button if user can insert and there is a selected record */
 						if($SelectedID && $this->Permissions['insert'] && $this->SeparateDV && $this->AllowInsert) {
 							$this->HTML .= ' <button type="submit" id="addNew" name="addNew_x" value="1" class="btn btn-success"><i class="glyphicon glyphicon-plus-sign"></i> ' . $this->translation['Add New'] . '</button>';
@@ -800,7 +807,7 @@ class DataList {
 						$this->HTML .= '<h1>';
 							$this->HTML .= '<div class="row">';
 								$this->HTML .= '<div class="col-sm-8">';
-									$this->HTML .= '<a style="text-decoration: none; color: inherit;" href="' . $this->TableName . '_view.php"><img src="' . $this->TableIcon . '"> ' . $this->TableTitle . '</a>';
+									$this->HTML .= '<a style="text-decoration: none; color: inherit;" href="' . $this->TableName . '_view.php?' . WindowMessages::windowIdQuery() . '"><img src="' . $this->TableIcon . '"> ' . $this->TableTitle . '</a>';
 									/* show add new button if user can insert and there is a selected record */
 									if($SelectedID && $this->Permissions['insert'] && !$this->SeparateDV && $this->AllowInsert) {
 										$this->HTML .= ' <button type="submit" id="addNew" name="addNew_x" value="1" class="btn btn-success"><i class="glyphicon glyphicon-plus-sign"></i> ' . $this->translation['Add New'] . '</button>';
