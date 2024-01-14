@@ -917,7 +917,7 @@ class DataList {
 
 						/* handle child info column header */
 						if($this->ColNumber[$i] == -1) {
-							[$childTable, $lookupField] = @explode('.', trim($this->ColFieldName[$i], '%'));
+							list($childTable, $lookupField) = @explode('.', trim($this->ColFieldName[$i], '%'));
 							$extraClasses = "child-{$childTable}-{$lookupField} child-records-info";
 							$extraAttributes = " data-table=\"{$childTable}\" data-lookup-field=\"{$lookupField}\"";
 							$extraHint = ' <button class="btn-link update-children-count" type="button" title="' . $this->translation['update'] . '"><i class="glyphicon glyphicon-refresh text-muted"></i></button>';
@@ -1864,6 +1864,7 @@ class DataList {
 			&& (
 				!empty($this->FilterValue[$index])
 				|| strpos($this->FilterOperator[$index], 'empty') !== false
+				|| $this->FilterValue[$index] === '0'
 			)
 		);
 	}

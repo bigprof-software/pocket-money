@@ -1883,7 +1883,7 @@ AppGini.lockUpdatesOnUserRequest = function() {
 			locker.toggleClass('active');
 			locker.prop('title', AppGini.Translate._map[locker.hasClass('active') ? 'Enable' : 'Disable']);
 		})
-	
+
 	// if record has just been added/updated, lock updates
 	if(AppGini.isRecordUpdated()) $j('.btn-update-locker').trigger('click');
 }
