@@ -115,7 +115,9 @@
 				'smtp_pass' => $post['smtp_pass'],
 				'googleAPIKey' => $post['googleAPIKey'],
 				'baseUploadPath' => ($post['baseUploadPath'] ? $post['baseUploadPath'] : 'images'),
-			], LDAP::postToSettings($post)),
+			],
+			LDAP::postToSettings($post)
+			),
 		];
 
 		// save changes
