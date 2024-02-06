@@ -429,6 +429,9 @@ function transactions_validateData() {
 	$j('.has-error').removeClass('has-error');
 	var errors = false;
 
+	// check all required fields have values
+	if(!AppGini.Validation.fieldRequired('lookup', 'kid', 'Kid')) return false;
+
 	return !errors;
 }
 

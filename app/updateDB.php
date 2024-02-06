@@ -27,7 +27,7 @@
 			CREATE TABLE IF NOT EXISTS `transactions` ( 
 				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
 				PRIMARY KEY (`id`),
-				`kid` INT UNSIGNED NULL,
+				`kid` INT UNSIGNED NOT NULL,
 				`date` DATETIME NULL,
 				`amount` DOUBLE(10,2) NULL,
 				`description` TEXT NULL,

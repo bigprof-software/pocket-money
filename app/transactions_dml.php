@@ -19,6 +19,11 @@ function transactions_insert(&$error_message = '') {
 		'description' => Request::val('description', ''),
 	];
 
+	if($data['kid'] === '') {
+		echo StyleSheet() . "\n\n<div class=\"alert alert-danger\">{$Translation['error:']} 'Kid': {$Translation['field not null']}<br><br>";
+		echo '<a href="" onclick="history.go(-1); return false;">' . $Translation['< back'] . '</a></div>';
+		exit;
+	}
 
 	// hook: transactions_before_insert
 	if(function_exists('transactions_before_insert')) {
@@ -120,6 +125,11 @@ function transactions_update(&$selected_id, &$error_message = '') {
 		'description' => Request::val('description', ''),
 	];
 
+	if($data['kid'] === '') {
+		echo StyleSheet() . "\n\n<div class=\"alert alert-danger\">{$Translation['error:']} 'Kid': {$Translation['field not null']}<br><br>";
+		echo '<a href="" onclick="history.go(-1); return false;">' . $Translation['< back'] . '</a></div>';
+		exit;
+	}
 	// get existing values
 	$old_data = getRecord('transactions', $selected_id);
 	if(is_array($old_data)) {

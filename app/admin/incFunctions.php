@@ -991,7 +991,7 @@
 						],
 					],
 					'kid' => [
-						'appgini' => "INT UNSIGNED NULL",
+						'appgini' => "INT UNSIGNED NOT NULL",
 						'info' => [
 							'caption' => 'Kid',
 							'description' => '',

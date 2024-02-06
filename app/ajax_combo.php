@@ -44,7 +44,7 @@
 				'custom_query' => '',
 				'inherit_permissions' => false,
 				'list_type' => 0,
-				'not_null' => false,
+				'not_null' => true,
 			],
 		],
 	];
