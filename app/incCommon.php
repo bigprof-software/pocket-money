@@ -428,6 +428,52 @@
 
 	#########################################################
 
+	function parseMySQLDateTime($datetime, $altDateTime) {
+		// is $datetime valid?
+		if(mysql_datetime($datetime)) return mysql_datetime($datetime);
+
+		if($altDateTime === '') return '';
+
+		// is $altDateTime valid?
+		if(mysql_datetime($altDateTime)) return mysql_datetime($altDateTime);
+
+		/* parse $altDateTime */
+		$matches = [];
+		if(!preg_match('/^([+-])(\d+)(s|m|h|d)(0)?$/', $altDateTime, $matches))
+			return '';
+		
+		$sign = ($matches[1] == '-' ? -1 : 1);
+		$unit = $matches[3];
+		$qty = $matches[2];
+
+		// m0 means increment minutes, set seconds to 0
+		// h0 means increment hours, set minutes and seconds to 0
+		// d0 means increment days, set time to 00:00:00
+		$zeroTime = $matches[4] == '0';
+
+		switch($unit) {
+			case 's':
+				$seconds = $qty * $sign;
+				break;
+			case 'm':
+				$seconds = $qty * 60 * $sign;
+				if($zeroTime) return @date('Y-m-d H:i:00', @time() + $seconds);
+				break;
+			case 'h':
+				$seconds = $qty * 3600 * $sign;
+				if($zeroTime) return @date('Y-m-d H:00:00', @time() + $seconds);
+				break;
+			case 'd':
+				$seconds = $qty * 86400 * $sign;
+				if($zeroTime) return @date('Y-m-d 00:00:00', @time() + $seconds);
+				break;
+		}
+
+		return @date('Y-m-d H:i:s', @time() + $seconds);
+	}
+
+	#########################################################
+
 	function parseCode($code, $isInsert = true, $rawData = false) {
 		$mi = Authentication::getUser();
 
