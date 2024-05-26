@@ -1,6 +1,6 @@
 var AppGini = AppGini || {};
 
-AppGini.version = 24.10;
+AppGini.version = 24.14;
 
 /* initials and fixes */
 jQuery(function() {
@@ -157,21 +157,9 @@ jQuery(function() {
 	// format .locale-int and .locale-float numbers
 	// to stop it, set AppGini.noLocaleFormatting to true in a hook script in footer-extras.php, .. etc
 	if(!AppGini.noLocaleFormatting) setInterval(() => {
-		$j('.locale-int').each(function() {
+		$j('.locale-int, .locale-float').each(function() {
 			let i = $j(this).text().trim();
-			if(!/^\d+(\.\d+)?$/.test(i)) return; // already formatted or invalid number
-
-			$j(this).text(parseInt(i).toLocaleString());
-		})
-
-		$j('.locale-float').each(function() {
-			let f = $j(this).text().trim();
-			if(!/^\d+(\.\d+)?$/.test(f)) return; // already formatted or invalid number
-
-			// preserve decimals
-			const countDecimals = (f.split('.')[1] || '').length;
-
-			$j(this).text(parseFloat(f).toLocaleString(undefined, {minimumFractionDigits: countDecimals, maximumFractionDigits: countDecimals}));
+			$j(this).text(AppGini.localeFormat(i, $j(this).hasClass('locale-int')));
 		})
 	}, 100);
 
@@ -313,6 +301,31 @@ jQuery(function() {
 
 	// if upload toolbox is empty, hide it
 	$j('.upload-toolbox').toggleClass('hidden', !$j('.upload-toolbox').children().not('.hidden').length)
+
+	// on clicking .sql-query-copier or .sql-query-container, copy the query to clipboard
+	// and set .sql-query-copier to 'copied' for 1 second
+	$j(document).on('click', '.sql-query-copier', function() {
+		const query = $j(this).siblings('.sql-query-container').text().trim();
+		if(!query) return;
+
+		AppGini.copyToClipboard(query);
+
+		$j(this).text(AppGini.Translate._map['copied']);
+		setTimeout(() => $j(this).text(AppGini.Translate._map['click to copy']), 1000);
+	})
+	$j(document).on('click', '.sql-query-container', function() {
+		$j(this).siblings('.sql-query-copier').click();
+	})
+
+	// in TVP, disable lightbox for images
+	if($j('#current_view').val() == 'TVP') {
+		const links = document.querySelectorAll('a[data-lightbox]');
+		links.forEach(function(link) {
+			const img = link.innerHTML; // Get the inner HTML of the <a> tag, which should be an <img> element
+			link.parentNode.replaceChild(link.firstChild, link); // Replace the <a> tag with its child <img>
+		});
+	}
+
 });
 
 /* show/hide TV action buttons based on whether records are selected or not */
@@ -1829,6 +1842,11 @@ AppGini.sortSelect2ByRelevence = function(res, cont, qry) {
 			if(aStart && !bStart) return false;
 			if(!aStart && bStart) return true;
 		}
+
+		// if trimmed item is empty, always return it first
+		if(a.text.trim() == '') return false;
+		if(b.text.trim() == '') return true;
+
 		return a.text > b.text;
 	});
 }
@@ -2480,4 +2498,59 @@ AppGini.updateChildrenCount = (scheduleNextCall = true) => {
 		if(scheduleNextCall)
 			setTimeout(AppGini.updateChildrenCount, elapsed > 2000 ? 60000 : 10000);
 	});
+}
+
+AppGini.copyToClipboard = (text) => {
+	if(navigator.clipboard) {
+	   navigator.clipboard.writeText(text);
+	   return;
+	}
+
+	const textArea = document.createElement('textarea');
+	textArea.value = text;
+	document.body.appendChild(textArea);
+	textArea.select();
+	document.execCommand('copy');
+	document.body.removeChild(textArea);
+}
+
+AppGini.htmlEntitiesToText = (html) => {
+	const txt = document.createElement('textarea');
+	txt.innerHTML = html;
+	return txt.value;
+}
+
+AppGini.localeFormat = (num, isInt, locale) => {
+	// ensure num is a string
+	num = num.toString();
+
+	// if num has no digits, return it as is
+	if (!num.match(/\d/)) {
+		return num;
+	}
+
+	// if isInt is not provided or not true, set as false
+	isInt = isInt === true;
+
+	// if locale not provided, default to current locale
+	locale = locale || navigator.language;
+
+	// decimal separator based on locale
+	const decimalSeparator = new Intl.NumberFormat(locale).format(1.1).replace(/\d/g, '');
+	// thousands separator based on locale
+	const thousandsSeparator = new Intl.NumberFormat(locale).format(11111).replace(/\d/g, '');
+
+	// if number is a raw number (e.g. 1234.5 or 12.34), format it based on locale
+	if (!isInt && num.indexOf(decimalSeparator) === -1) {
+		let lfn = new Intl.NumberFormat(locale).format(num);
+		return lfn === 'NaN' ? num : lfn;
+	}
+
+	// if number is already formatted in the locale, return it as is
+	if (num.indexOf(thousandsSeparator) !== -1) {
+		return num;
+	}
+
+	// return the number formatted in the locale
+	return new Intl.NumberFormat(locale).format(parseFloat(num.replace(decimalSeparator, '.')));
 }
