@@ -14,7 +14,7 @@ function transactions_insert(&$error_message = '') {
 
 	$data = [
 		'kid' => Request::lookup('kid', ''),
-		'date' => Request::datetime('date', ''),
+		'date' => Request::datetime('date', '+0m0'),
 		'amount' => Request::val('amount', ''),
 		'description' => Request::val('description', ''),
 	];
@@ -485,7 +485,7 @@ function transactions_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1
 		$templateCode = str_replace('<%%VALUE(kid)%%>', '', $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(kid)%%>', urlencode(''), $templateCode);
 		$templateCode = str_replace('<%%VALUE(date)%%>', app_datetime(parseMySQLDateTime('', '+0m0'), 'dt'), $templateCode);
-		$templateCode = str_replace('<%%URLVALUE(date)%%>', urlencode(''), $templateCode);
+		$templateCode = str_replace('<%%URLVALUE(date)%%>', urlencode(app_datetime(parseMySQLDateTime('', '+0m0'), 'dt')), $templateCode);
 		$templateCode = str_replace('<%%VALUE(amount)%%>', '', $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(amount)%%>', urlencode(''), $templateCode);
 		$templateCode = str_replace('<%%VALUE(description)%%>', '', $templateCode);
