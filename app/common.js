@@ -877,7 +877,7 @@ function mass_change_owner(t, ids) {
 }
 
 function add_more_actions_link() {
-	window.open('https://bigprof.com/appgini/help/advanced-topics/hooks/multiple-record-batch-actions?r=appgini-action-menu');
+	window.open('https://bigprof.com/appgini/help/advanced-topics/hooks/multiple-record-batch-actions/?r=appgini-action-menu');
 }
 
 /* detect current screen size (xs, sm, md or lg) */
@@ -2235,7 +2235,7 @@ AppGini.showKeyboardShortcuts = (e) => {
 	 */
 	if(typeof(_noShortcutsReference) == 'undefined')
 		$j(
-			'<a href="https://bigprof.com/appgini/help/working-with-generated-web-database-application/shortcut-keys" target="_blank">' +
+			'<a href="https://bigprof.com/appgini/help/working-with-generated-web-database-application/shortcut-keys/" target="_blank">' +
 			AppGini.Translate._map['keyboard shorcuts reference'] +
 			'</a>'
 		).appendTo('#' + modalId + ' .modal-footer');
