@@ -4,4 +4,4 @@
 	$debug = [];
 	auto_deposit_pocket_money_weekly($debug);
 
-	print_r($debug);
+	echo '<pre>' . print_r($debug, true) . '</pre>';

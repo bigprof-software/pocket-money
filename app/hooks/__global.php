@@ -109,7 +109,8 @@
 
 		// get all kids and their current pocket money value
 		$kids = get_all_kids();
-		$debug['kids'] = count($kids);
+		$debug['kidsCount'] = count($kids);
+		$debug['kids'] = $kids;
 		foreach ($kids as $kid) {
 			// if pocket money already added, skip
 			$debug['kid-' . $kid['name'] . '-has-pocket-money?'] = false; 
