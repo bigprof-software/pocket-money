@@ -233,31 +233,40 @@ function kids_update(&$selected_id, &$error_message = '') {
 	set_record_owner('kids', $selected_id);
 }
 
-function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $AllowDelete = 1, $separateDV = 0, $TemplateDV = '', $TemplateDVP = '') {
+function kids_form($selectedId = '', $allowUpdate = true, $allowInsert = true, $allowDelete = true, $separateDV = true, $templateDV = '', $templateDVP = '') {
 	// function to return an editable form for a table records
-	// and fill it with data of record whose ID is $selected_id. If $selected_id
+	// and fill it with data of record whose ID is $selectedId. If $selectedId
 	// is empty, an empty form is shown, with only an 'Add New'
 	// button displayed.
 
 	global $Translation;
 	$eo = ['silentErrors' => true];
-	$noUploads = null;
-	$row = $urow = $jsReadOnly = $jsEditable = $lookups = null;
-
+	$noUploads = $row = $urow = $jsReadOnly = $jsEditable = $lookups = null;
 	$noSaveAsCopy = false;
+	$hasSelectedId = strlen($selectedId) > 0;
 
 	// mm: get table permissions
 	$arrPerm = getTablePermissions('kids');
-	if(!$arrPerm['insert'] && $selected_id == '')
+	$allowInsert = ($arrPerm['insert'] ? true : false);
+	$allowUpdate = $hasSelectedId && check_record_permission('kids', $selectedId, 'edit');
+	$allowDelete = $hasSelectedId && check_record_permission('kids', $selectedId, 'delete');
+
+	if(!$allowInsert && !$hasSelectedId)
 		// no insert permission and no record selected
-		// so show access denied error unless TVDV
+		// so show access denied error -- except if TVDV: just hide DV
 		return $separateDV ? $Translation['tableAccessDenied'] : '';
-	$AllowInsert = ($arrPerm['insert'] ? true : false);
+
+	if($hasSelectedId && !check_record_permission('kids', $selectedId, 'view'))
+		return $Translation['tableAccessDenied'];
+
 	// print preview?
-	$dvprint = false;
-	if(strlen($selected_id) && Request::val('dvprint_x') != '') {
-		$dvprint = true;
-	}
+	$dvprint = $hasSelectedId && Request::val('dvprint_x') != '';
+
+	$showSaveNew = !$dvprint && ($allowInsert && !$hasSelectedId);
+	$showSaveChanges = !$dvprint && $allowUpdate && $hasSelectedId;
+	$showDelete = !$dvprint && $allowDelete && $hasSelectedId;
+	$showSaveAsCopy = !$dvprint && ($allowInsert && $hasSelectedId && !$noSaveAsCopy);
+	$fieldsAreEditable = !$dvprint && (($allowInsert && !$hasSelectedId) || ($allowUpdate && $hasSelectedId) || $showSaveAsCopy);
 
 
 	// populate filterers, starting from children to grand-parents
@@ -265,17 +274,8 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	// unique random identifier
 	$rnd1 = ($dvprint ? rand(1000000, 9999999) : '');
 
-	if($selected_id) {
-		if(!check_record_permission('kids', $selected_id, 'view'))
-			return $Translation['tableAccessDenied'];
-
-		// can edit?
-		$AllowUpdate = check_record_permission('kids', $selected_id, 'edit');
-
-		// can delete?
-		$AllowDelete = check_record_permission('kids', $selected_id, 'delete');
-
-		$res = sql("SELECT * FROM `kids` WHERE `id`='" . makeSafe($selected_id) . "'", $eo);
+	if($hasSelectedId) {
+		$res = sql("SELECT * FROM `kids` WHERE `id`='" . makeSafe($selectedId) . "'", $eo);
 		if(!($row = db_fetch_array($res))) {
 			return error_message($Translation['No records found'], 'kids_view.php', false);
 		}
@@ -291,10 +291,10 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 
 	// open the detail view template
 	if($dvprint) {
-		$template_file = is_file("./{$TemplateDVP}") ? "./{$TemplateDVP}" : './templates/kids_templateDVP.html';
+		$template_file = is_file("./{$templateDVP}") ? "./{$templateDVP}" : './templates/kids_templateDVP.html';
 		$templateCode = @file_get_contents($template_file);
 	} else {
-		$template_file = is_file("./{$TemplateDV}") ? "./{$TemplateDV}" : './templates/kids_templateDV.html';
+		$template_file = is_file("./{$templateDV}") ? "./{$templateDV}" : './templates/kids_templateDV.html';
 		$templateCode = @file_get_contents($template_file);
 	}
 
@@ -303,8 +303,9 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	$templateCode = str_replace('<%%RND1%%>', $rnd1, $templateCode);
 	$templateCode = str_replace('<%%EMBEDDED%%>', (Request::val('Embedded') ? 'Embedded=1' : ''), $templateCode);
 	// process buttons
-	if($AllowInsert) {
-		if(!$selected_id) $templateCode = str_replace('<%%INSERT_BUTTON%%>', '<button type="submit" class="btn btn-success" id="insert" name="insert_x" value="1" onclick="return kids_validateData();"><i class="glyphicon glyphicon-plus-sign"></i> ' . $Translation['Save New'] . '</button>', $templateCode);
+	if($showSaveNew) {
+		$templateCode = str_replace('<%%INSERT_BUTTON%%>', '<button type="submit" class="btn btn-success" id="insert" name="insert_x" value="1" onclick="return kids_validateData();"><i class="glyphicon glyphicon-plus-sign"></i> ' . $Translation['Save New'] . '</button>', $templateCode);
+	} elseif($showSaveAsCopy) {
 		$templateCode = str_replace('<%%INSERT_BUTTON%%>', '<button type="submit" class="btn btn-default" id="insert" name="insert_x" value="1" onclick="return kids_validateData();"><i class="glyphicon glyphicon-plus-sign"></i> ' . $Translation['Save As Copy'] . '</button>', $templateCode);
 	} else {
 		$templateCode = str_replace('<%%INSERT_BUTTON%%>', '', $templateCode);
@@ -317,14 +318,14 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 		$backAction = '$j(\'form\').eq(0).attr(\'novalidate\', \'novalidate\'); document.myform.reset(); return true;';
 	}
 
-	if($selected_id) {
+	if($hasSelectedId) {
 		if(!Request::val('Embedded')) $templateCode = str_replace('<%%DVPRINT_BUTTON%%>', '<button type="submit" class="btn btn-default" id="dvprint" name="dvprint_x" value="1" onclick="$j(\'form\').eq(0).prop(\'novalidate\', true); document.myform.reset(); return true;" title="' . html_attr($Translation['Print Preview']) . '"><i class="glyphicon glyphicon-print"></i> ' . $Translation['Print Preview'] . '</button>', $templateCode);
-		if($AllowUpdate)
+		if($allowUpdate)
 			$templateCode = str_replace('<%%UPDATE_BUTTON%%>', '<button type="submit" class="btn btn-success btn-lg" id="update" name="update_x" value="1" onclick="return kids_validateData();" title="' . html_attr($Translation['Save Changes']) . '"><i class="glyphicon glyphicon-ok"></i> ' . $Translation['Save Changes'] . '</button>', $templateCode);
 		else
 			$templateCode = str_replace('<%%UPDATE_BUTTON%%>', '', $templateCode);
 
-		if($AllowDelete)
+		if($allowDelete)
 			$templateCode = str_replace('<%%DELETE_BUTTON%%>', '<button type="submit" class="btn btn-danger" id="delete" name="delete_x" value="1" title="' . html_attr($Translation['Delete']) . '"><i class="glyphicon glyphicon-trash"></i> ' . $Translation['Delete'] . '</button>', $templateCode);
 		else
 			$templateCode = str_replace('<%%DELETE_BUTTON%%>', '', $templateCode);
@@ -337,8 +338,8 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 		// if not in embedded mode and user has insert only but no view/update/delete,
 		// remove 'back' button
 		if(
-			$arrPerm['insert']
-			&& !$arrPerm['update'] && !$arrPerm['delete'] && !$arrPerm['view']
+			$allowInsert
+			&& !$allowUpdate && !$allowDelete && !$arrPerm['view']
 			&& !Request::val('Embedded')
 		)
 			$templateCode = str_replace('<%%DESELECT_BUTTON%%>', '', $templateCode);
@@ -363,7 +364,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	}
 
 	// set records to read only if user can't insert new records and can't edit current record
-	if(($selected_id && !$AllowUpdate && !$AllowInsert) || (!$selected_id && !$AllowInsert)) {
+	if(!$fieldsAreEditable) {
 		$jsReadOnly = '';
 		$jsReadOnly .= "\tjQuery('#name').replaceWith('<div class=\"form-control-static\" id=\"name\">' + (jQuery('#name').val() || '') + '</div>');\n";
 		$jsReadOnly .= "\tjQuery('#pocket_money').replaceWith('<div class=\"form-control-static\" id=\"pocket_money\">' + (jQuery('#pocket_money').val() || '') + '</div>');\n";
@@ -371,8 +372,9 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 		$jsReadOnly .= "\tjQuery('.select2-container').hide();\n";
 
 		$noUploads = true;
-	} elseif($AllowInsert) {
-		$jsEditable = "\tjQuery('form').eq(0).data('already_changed', true);"; // temporarily disable form change handler
+	} else {
+		// temporarily disable form change handler till time and datetime pickers are enabled
+		$jsEditable = "\tjQuery('form').eq(0).data('already_changed', true);";
 		$jsEditable .= "\tjQuery('form').eq(0).data('already_changed', false);"; // re-enable form change handler
 	}
 
@@ -384,7 +386,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 		$pt_perm = getTablePermissions($ptfc[0]);
 
 		// process foreign key links
-		if($pt_perm['view'] || $pt_perm['edit']) {
+		if(($pt_perm['view'] && isDetailViewEnabled($ptfc[0])) || $pt_perm['edit']) {
 			$templateCode = str_replace("<%%PLINK({$luf})%%>", '<button type="button" class="btn btn-default view_parent" id="' . $ptfc[0] . '_view_parent" title="' . html_attr($Translation['View'] . ' ' . $ptfc[1]) . '"><i class="glyphicon glyphicon-eye-open"></i></button>', $templateCode);
 		}
 
@@ -399,7 +401,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	$templateCode = str_replace('<%%UPLOADFILE(name)%%>', '', $templateCode);
 	$templateCode = str_replace('<%%UPLOADFILE(pocket_money)%%>', '', $templateCode);
 	$templateCode = str_replace('<%%UPLOADFILE(photo)%%>', ($noUploads ? '' : "<div>{$Translation['upload image']}</div>" . '<input type="file" name="photo" id="photo" data-filetypes="jpg|jpeg|gif|png|webp" data-maxsize="2048000" style="max-width: calc(100% - 1.5rem);" accept="capture=camera,image/*">' . '<i class="text-danger clear-upload hidden pull-right" style="margin-top: -.1em; font-size: large;">&times;</i>'), $templateCode);
-	if($AllowUpdate && $row['photo'] != '') {
+	if($allowUpdate && $row['photo'] != '') {
 		$templateCode = str_replace('<%%REMOVEFILE(photo)%%>', '<input type="checkbox" name="photo_remove" id="photo_remove" value="1"> <label for="photo_remove" style="color: red; font-weight: bold;">'.$Translation['remove image'].'</label>', $templateCode);
 	} else {
 		$templateCode = str_replace('<%%REMOVEFILE(photo)%%>', '', $templateCode);
@@ -407,7 +409,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	$templateCode = str_replace('<%%UPLOADFILE(last_balance)%%>', '', $templateCode);
 
 	// process values
-	if($selected_id) {
+	if($hasSelectedId) {
 		if( $dvprint) $templateCode = str_replace('<%%VALUE(id)%%>', safe_html($urow['id']), $templateCode);
 		if(!$dvprint) $templateCode = str_replace('<%%VALUE(id)%%>', html_attr($row['id']), $templateCode);
 		$templateCode = str_replace('<%%URLVALUE(id)%%>', urlencode($urow['id']), $templateCode);
@@ -454,7 +456,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 		$templateCode .= $jsReadOnly;
 		$templateCode .= $jsEditable;
 
-		if(!$selected_id) {
+		if(!$hasSelectedId) {
 		}
 
 		$templateCode.="\n});</script>\n";
@@ -482,8 +484,8 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 
 	/* default field values */
 	$rdata = $jdata = get_defaults('kids');
-	if($selected_id) {
-		$jdata = get_joined_record('kids', $selected_id);
+	if($hasSelectedId) {
+		$jdata = get_joined_record('kids', $selectedId);
 		if($jdata === false) $jdata = get_defaults('kids');
 		$rdata = $row;
 	}
@@ -492,7 +494,7 @@ function kids_form($selected_id = '', $AllowUpdate = 1, $AllowInsert = 1, $Allow
 	// hook: kids_dv
 	if(function_exists('kids_dv')) {
 		$args = [];
-		kids_dv(($selected_id ? $selected_id : FALSE), getMemberInfo(), $templateCode, $args);
+		kids_dv(($hasSelectedId ? $selectedId : FALSE), getMemberInfo(), $templateCode, $args);
 	}
 
 	return $templateCode;

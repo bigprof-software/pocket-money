@@ -10,6 +10,6 @@
 		<td id="kids-photo-<%%VALUE(id)%%>" class="kids-photo"><a href="<%%BASE_UPLOAD_PATH%%><%%VALUE(photo)%%>" data-lightbox="kids-photo"><img src="thumbnail.php?i=<%%VALUE(photo)%%>&t=kids&f=photo&v=tv" class="img-thumbnail"></a></td>
 		<td id="kids-last_balance-<%%VALUE(id)%%>" class="kids-last_balance text-right"><%%SELECT%%><%%VALUE(last_balance)%%><%%ENDSELECT%%></td>
 		<td class="child-transactions-kid child-records-info" data-id="<%%VALUE(id)%%>" data-table="transactions" data-lookup-field="kid">
-			<a href="transactions_view.php?filterer_kid=<%%VALUE(id)%%>" target="_blank" title="<%%TRANSLATION(view)%%>" class="children-count" style="visibility: hidden;"><span class="count-children">0</span> <i class="glyphicon glyphicon-new-window"></i></a>
+			<a href="transactions_view.php?filterer_kid=<%%VALUE(id)%%>&Embedded=1" target="_blank" title="<%%TRANSLATION(view)%%> (Transactions)" class="modal-link children-count" style="visibility: hidden;"><span class="count-children">0</span> <i class="glyphicon glyphicon-new-window"></i></a>
 			<a href="transactions_view.php?filterer_kid=<%%VALUE(id)%%>&addNew_x=1&Embedded=1" target="_blank" class="modal-link new-child" title="<%%TRANSLATION(Add New)%%> (Transactions)" style="visibility: hidden;"><i class="text-success glyphicon glyphicon-plus"></i></a>
 		</td>

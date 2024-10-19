@@ -1,6 +1,6 @@
 var AppGini = AppGini || {};
 
-AppGini.version = 24.14;
+AppGini.version = 24.15;
 
 /* initials and fixes */
 jQuery(function() {
@@ -32,7 +32,7 @@ jQuery(function() {
 
 		$j('.detail_view .img-responsive').css({'max-width' : parseInt($j('.detail_view').width() * full_img_factor) + 'px'});
 
-		/* change height of sizer div below navbar to accomodate navbar height */
+		/* change height of sizer div below navbar to accommodate navbar height */
 		$j('.top-margin-adjuster').height($j('.navbar-fixed-top:visible').height() ?? 10);
 
 		/* remove labels from truncated buttons, leaving only glyphicons */
@@ -318,13 +318,32 @@ jQuery(function() {
 	})
 
 	// in TVP, disable lightbox for images
-	if($j('#current_view').val() == 'TVP') {
+	if(AppGini.currentViewIs('TVP')) {
 		const links = document.querySelectorAll('a[data-lightbox]');
 		links.forEach(function(link) {
 			const img = link.innerHTML; // Get the inner HTML of the <a> tag, which should be an <img> element
 			link.parentNode.replaceChild(link.firstChild, link); // Replace the <a> tag with its child <img>
 		});
 	}
+
+	// render the DV layout toolbar
+	AppGini.renderDVLayoutToolbar();
+
+	// handle click on layout toolbar buttons
+	$j('.detail_view-layout').on('click', 'a', function(e) {
+		e.preventDefault();
+
+		if($j(this).hasClass('switch-to-single-column-layout')) {
+			AppGini.applySingleColumnLayout();
+		} else if($j(this).hasClass('switch-to-double-column-layout')) {
+			AppGini.applyDoubleColumnLayout();
+		} else if($j(this).hasClass('switch-to-triple-column-layout')) {
+			AppGini.applyTripleColumnLayout();
+		}
+	});
+
+	AppGini.renderTVRecordsPerPageSelector();
+	AppGini.appendRecordsPerPageToTableLinks();
 
 });
 
@@ -358,7 +377,7 @@ AppGini.ajaxCache = function() {
 	var _tests = [];
 
 	/*
-		An array of functions that receive a parameterless url and a parameters object,
+		An array of functions that receive a parameter-less url and a parameters object,
 		makes a test,
 		and if test passes, executes something and/or
 		returns a non-false value if test passes,
@@ -2413,7 +2432,7 @@ AppGini.updateChildrenCount = (scheduleNextCall = true) => {
 	}
 
 	// TVP?
-	if($j('#current_view').val() == 'TVP' && !AppGini._childRecordsInfoAdaptedToTVP) {
+	if(AppGini.currentViewIs('TVP') && !AppGini._childRecordsInfoAdaptedToTVP) {
 		// show only the count, no link, no add new
 		$j('.child-records-info').not('th').html('<div class="text-right count-children"></div>');
 		AppGini._childRecordsInfoAdaptedToTVP = true;
@@ -2535,15 +2554,19 @@ AppGini.localeFormat = (num, isInt, locale) => {
 	// if locale not provided, default to current locale
 	locale = locale || navigator.language;
 
+	const globalNumeralsRegex = /[\d\u0660-\u0669\u0966-\u096F\u09E6-\u09EF\u0BE6-\u0BEF\u0E50-\u0E59\u1040-\u1049\u17E0-\u17E9]/g;
+
 	// decimal separator based on locale
-	const decimalSeparator = new Intl.NumberFormat(locale).format(1.1).replace(/\d/g, '');
+	const decimalSeparator = new Intl.NumberFormat(locale).format(1.1).replace(globalNumeralsRegex, '');
 	// thousands separator based on locale
-	const thousandsSeparator = new Intl.NumberFormat(locale).format(11111).replace(/\d/g, '');
+	const thousandsSeparator = new Intl.NumberFormat(locale).format(11111).replace(globalNumeralsRegex, '');
+	// Localized NaN
+	const lNaN = new Intl.NumberFormat(locale).format(NaN);
 
 	// if number is a raw number (e.g. 1234.5 or 12.34), format it based on locale
 	if (!isInt && num.indexOf(decimalSeparator) === -1) {
 		let lfn = new Intl.NumberFormat(locale).format(num);
-		return lfn === 'NaN' ? num : lfn;
+		return lfn === lNaN ? num : lfn;
 	}
 
 	// if number is already formatted in the locale, return it as is
@@ -2553,4 +2576,266 @@ AppGini.localeFormat = (num, isInt, locale) => {
 
 	// return the number formatted in the locale
 	return new Intl.NumberFormat(locale).format(parseFloat(num.replace(decimalSeparator, '.')));
+}
+
+AppGini.storedLayout = (val) => {
+	const view = $j('[name="current_view"]').val();
+
+	if(val !== undefined) {
+		localStorage.setItem(`pocket_money.${AppGini.currentTableName()}.${view}.layout`, val);
+	}
+	return localStorage.getItem(`pocket_money.${AppGini.currentTableName()}.${view}.layout`);
+}
+
+AppGini.renderDVLayoutToolbar = () => {
+	// already rendered? return
+	if($j('.detail_view-layout').length) return;
+
+	// if not in detail view, return
+	if(!$j('.detail_view').length) return;
+
+	// if we have less than 3 divs in the first fieldset, return
+	if($j('fieldset.form-horizontal').first().children('div').length < 3) return;
+
+	// create the layout toolbar above 1st fieldset
+	$j('fieldset.form-horizontal').first().before(`
+		<div class="detail_view-layout hidden-print">
+			<a href="#" class="switch-to-single-column-layout"><img src="${AppGini.config.url}resources/images/single-column-layout.png"></a>
+			<a href="#" class="switch-to-double-column-layout"><img src="${AppGini.config.url}resources/images/double-column-layout.png"></a>
+			<a href="#" class="switch-to-triple-column-layout"><img src="${AppGini.config.url}resources/images/triple-column-layout.png"></a>
+		</div>
+	`);
+
+	// retrieve user preference from local storage
+	const dvLayout = AppGini.storedLayout();
+
+	// apply user preference if found
+	const windowWidth = $j(window).width();
+	if(dvLayout == 'double-column-layout' && windowWidth >= 1200) {
+		AppGini.applyDoubleColumnLayout();
+	} else if(dvLayout == 'triple-column-layout' && windowWidth >= 1700) {
+		AppGini.applyTripleColumnLayout();
+	}
+}
+
+AppGini.applySingleColumnLayout = () => {
+	// move all divs inside second and third fieldsets to the first fieldset
+	$j('fieldset.form-horizontal').slice(1).children('div').appendTo($j('fieldset.form-horizontal').first());
+
+	// remove second and third fieldsets
+	$j('fieldset.form-horizontal').slice(1).remove();
+
+	// remove .double-column-layout and .triple-column-layout classes from all fieldsets
+	$j('fieldset.form-horizontal').removeClass('double-column-layout triple-column-layout');
+
+	// store preference in local storage
+	AppGini.storedLayout('single-column-layout');
+}
+
+AppGini.applyDoubleColumnLayout = () => {
+	// if already in double-column layout, return
+	if($j('fieldset.form-horizontal').first().hasClass('double-column-layout')) return;
+
+	// if already in triple-column layout, switch to double-column layout
+	if($j('fieldset.form-horizontal').first().hasClass('triple-column-layout')) {
+		AppGini.applySingleColumnLayout();
+	}
+
+	// create a new fieldset for the third column
+	$j('fieldset.form-horizontal').first().after('<fieldset></fieldset>');
+
+	// add .double-column-layout class to all fieldsets
+	$j('fieldset').addClass('form-horizontal double-column-layout');
+
+	// move half of the divs from the first fieldset to the second fieldset
+	const half = Math.ceil($j('fieldset.form-horizontal').first().children('div').length / 2);
+	$j('fieldset.form-horizontal').first().children('div').slice(half).appendTo($j('fieldset.form-horizontal').first().next());
+
+	// store preference in local storage
+	AppGini.storedLayout('double-column-layout');
+}
+
+AppGini.applyTripleColumnLayout = () => {
+	// if already in triple-column layout, return
+	if($j('fieldset.form-horizontal').first().hasClass('triple-column-layout')) return;
+
+	// if already in double-column layout, switch to triple-column layout
+	if($j('fieldset.form-horizontal').first().hasClass('double-column-layout')) {
+		AppGini.applySingleColumnLayout();
+	}
+
+	// create a new fieldset for the second column
+	$j('fieldset.form-horizontal').first().after('<fieldset></fieldset>');
+
+	// create a new fieldset for the third column
+	$j('fieldset.form-horizontal').first().after('<fieldset></fieldset>');
+
+	// add .triple-column-layout class to all fieldsets
+	$j('fieldset').addClass('form-horizontal triple-column-layout');
+
+	// move 1/3 of the divs from the first fieldset to the second fieldset
+	const third = Math.ceil($j('fieldset.form-horizontal').first().children('div').length / 3);
+	$j('fieldset.form-horizontal').first().children('div').slice(third * 2).appendTo($j('fieldset.form-horizontal').first().next().next());
+	$j('fieldset.form-horizontal').first().children('div').slice(third).appendTo($j('fieldset.form-horizontal').first().next());
+
+	// store preference in local storage
+	AppGini.storedLayout('triple-column-layout');
+}
+
+
+AppGini.preparePagesMenu = (recordsPerPage, pagesMenuId, lastPage, currentPage, lump) => {
+	const addPageNumbers = (fromPage, toPage) => {
+		const pagesMenu = document.getElementById(pagesMenuId);
+		let ellipsesIndex = 0;
+
+		if(fromPage > toPage) return;
+
+		if(fromPage > 0) {
+			if(pagesMenu.options[pagesMenu.options.length - 1].text != fromPage) {
+				ellipsesIndex = pagesMenu.options.length;
+				fromPage--;
+			}
+		}
+
+		for(i = fromPage; i <= toPage; i++) {
+			var option = document.createElement("option");
+			option.text = (i + 1);
+			option.value = i;
+			if(i == currentPage) { option.selected = "selected"; }
+			try{
+				/* for IE earlier than version 8 */
+				pagesMenu.add(option, pagesMenu.options[null]);
+			}catch(e) {
+				pagesMenu.add(option, null);
+			}
+		}
+
+		if(ellipsesIndex > 0) {
+			pagesMenu.options[ellipsesIndex].text = " ... ";
+		}      
+	}
+
+	// empty the pages menu and clear any previous event handlers
+	$j(`#${pagesMenuId}`).empty()
+		.off('change')
+		.on('change', function() {
+			// get parent form
+			const parentForm = $j(this).closest('form');
+
+			// novalidate
+			parentForm.attr('novalidate', 'novalidate');
+
+			// set NoDV hidden field value to 1
+			parentForm.find('input[name=NoDV]').val(1);
+
+			// and FirstRecord
+			parentForm.find('input[name=FirstRecord]').val(parseInt($j(this).val()) * recordsPerPage + 1);
+
+			// submit the form
+			parentForm.submit();
+		});
+
+	if(lastPage <= lump * 3) {
+		addPageNumbers(0, lastPage);
+		return;
+	}
+
+	addPageNumbers(0, lump - 1);
+	if(currentPage < lump) addPageNumbers(lump, currentPage + lump / 2);
+	if(currentPage >= lump && currentPage < (lastPage - lump)) {
+	addPageNumbers(
+		Math.max(currentPage - lump / 2, lump),
+		Math.min(currentPage + lump / 2, lastPage - lump - 1)
+	);
+	}
+	if(currentPage >= (lastPage - lump)) addPageNumbers(currentPage - lump / 2, lastPage - lump - 1);
+	addPageNumbers(lastPage - lump, lastPage);
+}
+
+AppGini.storedRecordsPerPage = (val) => {
+	if(val !== undefined) {
+		localStorage.setItem(`pocket_money.${AppGini.currentTableName()}.recordsPerPage`, val);
+	}
+	return localStorage.getItem(`pocket_money.${AppGini.currentTableName()}.recordsPerPage`);
+}
+
+AppGini.renderTVRecordsPerPageSelector = () => {
+	// if not TV, return
+	if(!AppGini.currentViewIs('TV')) return;
+
+	// if records per page selector already rendered, return
+	if($j('#records-per-page-selector').length) return;
+
+	// to override the default records per page options,
+	// set AppGini.config.recordsPerPageOptions as an array of integers 
+	// in hooks/header-extras.php or hooks/footer-extras.php
+	let rppOptions = [5, 10, 20, 30, 40, 50, 100, 200];
+	if(AppGini.config.recordsPerPageOptions) {
+		rppOptions = AppGini.config.recordsPerPageOptions;
+	}
+
+	// create the records per page selector and append to .record-count-info
+	$j('.record-count-info').append(`
+		<div class="form-inline pull-right">
+			<label style="font-weight: normal;">
+				<i class="glyphicon glyphicon-menu-hamburger text-muted"></i>
+				${AppGini.Translate._map['records per page']}
+			</label>
+			<select id="records-per-page-selector" class="form-control input-sm">
+				${rppOptions.map(rpp => `<option value="${rpp}">${rpp}</option>`).join('')}
+			</select>
+		</div>
+		<div class="clearfix"></div>
+	`);
+
+	// handle change event
+	$j('#records-per-page-selector').on('change', function() {
+		const newRecordsPerPage = $j(this).val();
+
+		AppGini.storedRecordsPerPage(newRecordsPerPage);
+
+		// get parent form
+		const parentForm = $j(this).closest('form');
+
+		// novalidate
+		parentForm.attr('novalidate', 'novalidate');
+
+		// no DV
+		parentForm.find('input[name=NoDV]').val(1);
+
+		// set first record hidden field value to 1
+		parentForm.find('input[name=FirstRecord]').val(1);
+
+		// set RecordsPerPage hidden field value
+		parentForm.find('input[name=RecordsPerPage]').val(newRecordsPerPage);
+
+		// submit the form
+		parentForm.submit();
+	});
+
+	// if stored records per page > 0 and not the same as the default,
+	// set the selected option to the stored value and trigger change event
+	const defaultRecordsPerPage = $j('[name=RecordsPerPage]').val();
+	const storedRecordsPerPage = AppGini.storedRecordsPerPage();
+	if(storedRecordsPerPage > 0 && storedRecordsPerPage != defaultRecordsPerPage && storedRecordsPerPage <= 200) {
+	   $j('#records-per-page-selector').val(storedRecordsPerPage).trigger('change');
+	   return;
+	}
+
+	// set the selected option based on the current records per page
+	$j('#records-per-page-selector').val(defaultRecordsPerPage);
+}
+
+AppGini.currentViewIs = (view) => $j('#current_view').val()?.toLowerCase() == view?.toLowerCase();
+
+AppGini.appendRecordsPerPageToTableLinks = () => {
+	// find stored records per page and extract table names from keys
+	Object.keys(localStorage).filter(k => k.match(/pocket_money\..*?\.recordsPerPage/)).forEach(k => {
+		const tableName = k.split('.')[1];
+		$j(`a[href*="/${tableName}_view.php"], a[href^="${tableName}_view.php"]`).each(function() {
+			const href = new URL($j(this).attr('href'), window.location.href);
+			href.searchParams.set('RecordsPerPage', localStorage.getItem(k));
+			$j(this).attr('href', href.toString());
+		});
+	});
 }

@@ -9,34 +9,16 @@
 	// check if this setup file already run
 	if($thisMD5 != $prevMD5) {
 		// set up tables
-		setupTable(
-			'kids', " 
-			CREATE TABLE IF NOT EXISTS `kids` ( 
-				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-				PRIMARY KEY (`id`),
-				`name` VARCHAR(40) NOT NULL,
-				UNIQUE `name_unique` (`name`),
-				`pocket_money` DECIMAL(10,2) NULL,
-				`photo` VARCHAR(40) NULL,
-				`last_balance` DECIMAL(10,2) NULL
-			) CHARSET utf8"
-		);
+		setupTable('kids', []);
 
-		setupTable(
-			'transactions', " 
-			CREATE TABLE IF NOT EXISTS `transactions` ( 
-				`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-				PRIMARY KEY (`id`),
-				`kid` INT UNSIGNED NOT NULL,
-				`date` DATETIME NULL,
-				`amount` DOUBLE(10,2) NULL,
-				`description` TEXT NULL,
-				`balance` DOUBLE(10,2) NULL
-			) CHARSET utf8"
-		);
+		setupTable('transactions', []);
 		setupIndexes('transactions', ['kid',]);
 
 
+
+		// set up internal tables
+		setupTable('appgini_query_log', []);
+		setupTable('appgini_csv_import_jobs', []);
 
 		// save MD5
 		@file_put_contents($setupHash, $thisMD5);
@@ -56,15 +38,17 @@
 	}
 
 
-	function setupTable($tableName, $createSQL = '', $arrAlter = '') {
+	function setupTable($tableName, $arrAlter = []) {
 		global $Translation;
 		$oldTableName = '';
+
+		$createSQL = createTableIfNotExists($tableName, true);
 		ob_start();
 
 		echo '<div style="padding: 5px; border-bottom:solid 1px silver; font-family: verdana, arial; font-size: 10px;">';
 
 		// is there a table rename query?
-		if(is_array($arrAlter)) {
+		if(!empty($arrAlter)) {
 			$matches = [];
 			if(preg_match("/ALTER TABLE `(.*)` RENAME `$tableName`/i", $arrAlter[0], $matches)) {
 				$oldTableName = $matches[1];
@@ -74,7 +58,7 @@
 		if($res = @db_query("SELECT COUNT(1) FROM `$tableName`")) { // table already exists
 			if($row = @db_fetch_array($res)) {
 				echo str_replace(['<TableName>', '<NumRecords>'], [$tableName, $row[0]], $Translation['table exists']);
-				if(is_array($arrAlter)) {
+				if(!empty($arrAlter)) {
 					echo '<br>';
 					foreach($arrAlter as $alter) {
 						if($alter != '') {
@@ -107,9 +91,9 @@
 						echo '<span class="label label-success">' . $Translation['ok'] . '</span>';
 					}
 
-					if(is_array($arrAlter)) setupTable($tableName, $createSQL, false, $arrAlter); // execute Alter queries on renamed table ...
+					if(!empty($arrAlter)) setupTable($tableName, $arrAlter); // execute Alter queries on renamed table ...
 				} else { // if old tableName doesn't exist (nor the new one since we're here), then just create the table.
-					setupTable($tableName, $createSQL, false); // no Alter queries passed ...
+					setupTable($tableName); // no Alter queries passed ...
 				}
 			} else { // tableName doesn't exist and no rename, so just create the table
 				echo str_replace("<TableName>", $tableName, $Translation["creating table"]);

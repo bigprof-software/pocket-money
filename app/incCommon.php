@@ -28,7 +28,6 @@
 		check_record_permission($table, $id, $perm = 'view') -- returns true if current user has the specified permission $perm ('view', 'edit' or 'delete') for the given recors, false otherwise
 		NavMenus($options) -- returns the HTML code for the top navigation menus. $options is not implemented currently.
 		StyleSheet() -- returns the HTML code for included style sheet files to be placed in the <head> section.
-		getUploadDir($dir) -- if dir is empty, returns upload dir configured in defaultLang.php, else returns $dir.
 		PrepareUploadedFile($FieldName, $MaxSize, $FileTypes={image file types}, $NoRename=false, $dir="") -- validates and moves uploaded file for given $FieldName into the given $dir (or the default one if empty)
 		get_home_links($homeLinks, $default_classes, $tgroup) -- process $homeLinks array and return custom links for homepage. Applies $default_classes to links if links have classes defined, and filters links by $tgroup (using '*' matches all table_group values)
 		quick_search_html($search_term, $label, $separate_dv = true) -- returns HTML code for the quick search box.
@@ -219,7 +218,7 @@
 				<a class="navbar-brand" href="<?php echo PREPEND_PATH; ?>index.php"><i class="glyphicon glyphicon-home"></i> <?php echo APP_TITLE; ?></a>
 			</div>
 			<div class="collapse navbar-collapse">
-				<ul class="nav navbar-nav"><?php echo ($home_page ? '' : NavMenus()); ?></ul>
+				<ul class="nav navbar-nav"><?php echo ($home_page && !HOMEPAGE_NAVMENUS ? '' : NavMenus()); ?></ul>
 
 				<?php if(userCanImport()){ ?>
 					<ul class="nav navbar-nav">
@@ -742,6 +741,21 @@
 				return '';
 			}
 
+			// if html data not empty, apply max width and height in place of provided height and width
+			$provided_width = $data['width'] ?? null;
+			$provided_height = $data['height'] ?? null;
+			if($provided_width && $provided_height) {
+				$aspect_ratio = $provided_width / $provided_height;
+				if($max_width / $aspect_ratio < $max_height) {
+					$max_height = intval($max_width / $aspect_ratio);
+				} else {
+					$max_width = intval($max_height * $aspect_ratio);
+				}
+
+				$data['html'] = str_replace("width=\"{$provided_width}\"", "width=\"{$max_width}\"", $data['html']);
+				$data['html'] = str_replace("height=\"{$provided_height}\"", "height=\"{$max_height}\"", $data['html']);
+			}
+
 			return (isset($data[$retrieve]) ? $data[$retrieve] : $data['html']);
 		}
 
@@ -1108,3 +1122,11 @@ EOT;
 
 		return $childTables;
 	}
+
+	#########################################################
+
+	function isDetailViewEnabled($tn) {
+		$tables = ['kids', 'transactions', ];
+		return in_array($tn, $tables);
+	}
+
